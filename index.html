@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>Controle Remoto de TV</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2238%22 fill=%22%23ff3b30%22/></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="stage">
+
+  <!-- ===== TV ===== -->
+  <div class="tv-wrap">
+    <div class="tv" id="tv" data-power="off">
+      <div class="tv-cam"></div>
+      <div class="screen" id="screen">
+
+        <div class="screen-off">
+          <span class="off-dot"></span>
+        </div>
+
+        <div class="screen-on">
+          <header class="osd-top">
+            <span class="osd-input" id="osdInput">TV</span>
+            <span class="osd-clock" id="osdClock">--:--</span>
+          </header>
+
+          <div class="channel-plate" id="channelPlate">
+            <span class="channel-num" id="channelNum">1</span>
+            <span class="channel-name" id="channelName">Canal 1</span>
+          </div>
+
+          <div class="osd-volume" id="osdVolume">
+            <span class="osd-volume-icon" id="osdVolumeIcon">🔊</span>
+            <div class="osd-volume-track"><div class="osd-volume-fill" id="osdVolumeFill"></div></div>
+            <span class="osd-volume-val" id="osdVolumeVal">20</span>
+          </div>
+
+          <div class="osd-mute" id="osdMute">MUDO</div>
+        </div>
+
+      </div>
+      <div class="tv-brand">PVN</div>
+    </div>
+    <div class="tv-stand"><div class="tv-neck"></div><div class="tv-base"></div></div>
+  </div>
+
+  <!-- ===== CONTROLE ===== -->
+  <div class="remote" id="remote">
+
+    <div class="ir-led-row">
+      <div class="ir-led" id="irLed" title="Emissor infravermelho"></div>
+    </div>
+
+    <div class="row row-top">
+      <button class="btn btn-power" data-cmd="power" aria-label="Ligar/Desligar">⏻</button>
+      <button class="btn btn-ghost" data-cmd="source" aria-label="Fonte">⇄ Fonte</button>
+      <button class="btn btn-ghost" data-cmd="mute" aria-label="Mudo">🔇</button>
+    </div>
+
+    <div class="row row-volchan">
+      <div class="rocker" data-group="volume">
+        <button class="btn btn-rocker" data-cmd="vol-up" aria-label="Aumentar volume">＋</button>
+        <span class="rocker-label">VOL</span>
+        <button class="btn btn-rocker" data-cmd="vol-down" aria-label="Diminuir volume">－</button>
+      </div>
+
+      <div class="dpad">
+        <button class="btn btn-dpad dpad-up" data-cmd="nav-up" aria-label="Cima">▲</button>
+        <button class="btn btn-dpad dpad-left" data-cmd="nav-left" aria-label="Esquerda">◀</button>
+        <button class="btn btn-dpad dpad-ok" data-cmd="ok" aria-label="OK">OK</button>
+        <button class="btn btn-dpad dpad-right" data-cmd="nav-right" aria-label="Direita">▶</button>
+        <button class="btn btn-dpad dpad-down" data-cmd="nav-down" aria-label="Baixo">▼</button>
+      </div>
+
+      <div class="rocker" data-group="channel">
+        <button class="btn btn-rocker" data-cmd="chan-up" aria-label="Próximo canal">＋</button>
+        <span class="rocker-label">CH</span>
+        <button class="btn btn-rocker" data-cmd="chan-down" aria-label="Canal anterior">－</button>
+      </div>
+    </div>
+
+    <div class="row row-nav">
+      <button class="btn btn-ghost" data-cmd="back" aria-label="Voltar">↩ Voltar</button>
+      <button class="btn btn-ghost" data-cmd="home" aria-label="Início">⌂ Início</button>
+      <button class="btn btn-ghost" data-cmd="menu" aria-label="Menu">☰ Menu</button>
+    </div>
+
+    <div class="row row-keypad">
+      <button class="btn btn-key" data-cmd="digit" data-digit="1">1</button>
+      <button class="btn btn-key" data-cmd="digit" data-digit="2">2</button>
+      <button class="btn btn-key" data-cmd="digit" data-digit="3">3</button>
+      <button class="btn btn-key" data-cmd="digit" data-digit="4">4</button>
+      <button class="btn btn-key" data-cmd="digit" data-digit="5">5</button>
+      <button class="btn btn-key" data-cmd="digit" data-digit="6">6</button>
+      <button class="btn btn-key" data-cmd="digit" data-digit="7">7</button>
+      <button class="btn btn-key" data-cmd="digit" data-digit="8">8</button>
+      <button class="btn btn-key" data-cmd="digit" data-digit="9">9</button>
+      <button class="btn btn-key btn-key-ghost" data-cmd="last-channel">⟲</button>
+      <button class="btn btn-key" data-cmd="digit" data-digit="0">0</button>
+      <button class="btn btn-key btn-key-ghost" data-cmd="clear-digit">⌫</button>
+    </div>
+
+  </div>
+
+  <!-- ===== LOG DE SINAIS IV ===== -->
+  <aside class="ir-log" id="irLog" aria-live="polite">
+    <header>Sinais infravermelho</header>
+    <ul id="irLogList"></ul>
+  </aside>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
