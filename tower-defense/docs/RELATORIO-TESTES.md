@@ -1,4 +1,4 @@
-# Relatório — Tower Defense 3.1.0
+# Relatório — Tower Defense 3.1.1
 
 Data: 2026-09-26 · Python 3.11 · terminal real via `tmux` em retrato de celular (46×50, 32×30, 32×26 e 30×26) com 256 cores. Telas conferidas em imagem com a fonte de emoji do Android (Noto Color Emoji). As capturas estão em `docs/capturas/`.
 
@@ -19,7 +19,7 @@ Os quatro pacotes propostos foram implementados.
 |---|---|
 | Lógica (`test_logica.py`) | 71 / 71 |
 | Tela (`test_terminal.sh`) | 90 / 90 |
-| Instalador (`test_instalador.sh`) | 28 / 28 |
+| Instalador (`test_instalador.sh`) | 29 / 29 |
 | Controle da TV (inalterado): IR, tela, instalador | 20 / 20 · 27 / 27 · 9 / 9 |
 | Pack (`testes/test_pack.sh`, raiz) | 18 / 18 |
 
@@ -78,6 +78,7 @@ O limite a 20 quadros por segundo é de 50 ms. Os efeitos custam mais que a lóg
 | Rótulos colados na barra de ações em 30 colunas ("chamarnormal") | Captura em 30×26 | Versões curtas pedem 1 coluna de folga |
 | Mensagem "Arqueiro nível 3: 2 alvos por" cortada | Captura em 30×26 | Mensagens de ação com versão curta |
 | Resultado do botão de tela cheia cortado ("recarrego") | Captura em 46 colunas | Versão curta da mensagem |
+| Instalador dizia "a sua ficou em ...font.ttf.antes-do-td" quando não havia fonte antes (sem backup) | Instalação simulada do pack da 3.1.0 | Mensagem certa para cada caso; saiu como 3.1.1 |
 
 ## O que só o seu celular confirma
 
