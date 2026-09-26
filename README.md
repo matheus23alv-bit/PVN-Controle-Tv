@@ -5,7 +5,7 @@ Este repositório contém dois projetos independentes. Cada um tem seu próprio 
 | Projeto | O que é | Rodar |
 |---|---|---|
 | [`controle-tv/`](controle-tv/source/LEIA-ME.md) | Controle remoto de TV pelo infravermelho do celular, no terminal do Termux (Python) | `tv` depois de instalar |
-| [`tower-defense/`](tower-defense/source/LEIA-ME.md) | Jogo tower defense de terminal para Termux (Python) | `td` depois de instalar |
+| [`tower-defense/`](tower-defense/source/LEIA-ME.md) | Jogo tower defense de terminal para Termux, em tela cheia no celular em pé, com criador de mapas (Python) | `td` depois de instalar |
 
 ## Teste completo em um comando
 

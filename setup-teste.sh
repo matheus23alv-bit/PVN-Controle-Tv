@@ -83,9 +83,10 @@ printf '   2. aponte o topo do celular para a TV e toque em LIGAR\n'
 printf '   3. teste VOL, MUDO, CH, números, setas e OK\n'
 printf '   4. se a marca não reagir: tecla %sd%s (descobrir)\n' "$B" "$N"
 printf '  %s🏰 Tower Defense%s\n' "$B" "$N"
-printf '   1. digite %std%s e abra o Tutorial\n' "$B" "$N"
+printf '   1. digite %std%s e abra o Tutorial (tela cheia, celular em pé)\n' "$B" "$N"
 printf '   2. jogue só com toques; anote a onda em que perdeu\n'
-printf '   3. se os emojis desalinharem: Opções → Emojis: NÃO\n'
+printf '   3. menu → Criar mapa: entrada, cantos da trilha, base, ▶ Testar\n'
+printf '   4. se os emojis desalinharem: Opções → Emojis: NÃO\n'
 printf '\n  %sRoteiros completos:%s\n' "$D" "$N"
 printf '  %s%s/controle-tv/docs/ROADMAP.md%s\n' "$D" "$REPO_WEB" "$N"
 printf '  %s%s/tower-defense/docs/ROADMAP.md%s\n\n' "$D" "$REPO_WEB" "$N"

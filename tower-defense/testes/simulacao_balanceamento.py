@@ -1,6 +1,7 @@
 """Simula partidas com jogadores automáticos para medir o balanceamento.
 
-Uso: python3 testes/simulacao_balanceamento.py [caminho/td.py] [partidas]
+Uso: python3 testes/simulacao_balanceamento.py [caminho/td.py] [partidas] [mapa ...]
+Sem mapas, roda nos mapas prontos e em 2 gerados (sementes 1 e 2).
 """
 import importlib.util
 import math
@@ -20,16 +21,16 @@ def load(path):
     return td
 
 
-def best_spots(key):
+def best_spots(g, key):
     r = td.TOWERS[key]["range"]
-    free = [(x, y) for x in range(td.W) for y in range(td.H) if (x, y) not in td.PATH_SET]
-    return sorted(free, key=lambda c: -sum(1 for p in td.PATH if math.hypot(p[0] - c[0], p[1] - c[1]) <= r))
+    free = g.mapa.find(".")
+    return sorted(free, key=lambda c: -sum(1 for p in g.path if math.hypot(p[0] - c[0], p[1] - c[1]) <= r))
 
 
-def play(order, seed, upgrade=False, max_waves=50, dt=0.1):
-    """order: sequencia de torres a comprar em rodizio. upgrade: melhora antes de construir nova."""
-    g = td.Game(seed=seed)
-    spots = {k: best_spots(k) for k in td.TOWERS}
+def play(mapa, order, seed, upgrade=False, max_waves=50, dt=0.1):
+    """order: sequência de torres a comprar em rodízio. upgrade: melhora antes de construir nova."""
+    g = td.Game(mapa, seed=seed)
+    spots = {k: best_spots(g, k) for k in td.TOWERS}
     n = 0
     while g.wave < max_waves:
         while True:  # gasta o ouro entre as ondas
@@ -62,11 +63,16 @@ STRATEGIES = {
 
 if __name__ == "__main__":
     path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "..", "source", "td.py")
-    runs = int(sys.argv[2]) if len(sys.argv) > 2 else 8
+    runs = int(sys.argv[2]) if len(sys.argv) > 2 else 3
     load(path)
-    print(f"{os.path.basename(path)} | HP_GROWTH={td.HP_GROWTH} | {runs} partidas por estrategia\n")
-    print(f"{'estrategia':<18}{'onda media':>11}{'min':>6}{'max':>6}{'torres':>8}")
+    maps = [td.resolve_map(r) for r in sys.argv[3:]] or (
+        td.builtin_maps() + [td.generate_map(11, 19, 1), td.generate_map(11, 19, 2)])
+    print(f"{os.path.basename(path)} | HP_GROWTH={td.HP_GROWTH} | {runs} partidas por estratégia (onda média)\n")
+    print(f"{'estratégia':<18}" + "".join(f"{m.name[:12]:>13}" for m in maps))
     for name, (order, up) in STRATEGIES.items():
-        res = [play(order, s, up) for s in range(runs)]
-        w = [r[0] for r in res]
-        print(f"{name:<18}{statistics.mean(w):>11.1f}{min(w):>6}{max(w):>6}{statistics.mean(r[1] for r in res):>8.1f}")
+        cells = []
+        for m in maps:
+            res = [play(m, order, s, up) for s in range(runs)]
+            cells.append(f"{statistics.mean(r[0] for r in res):>13.1f}")
+        print(f"{name:<18}" + "".join(cells))
+    print("\ntrilha: " + "  ".join(f"{m.name}={len(m.check()[0])}" for m in maps))
