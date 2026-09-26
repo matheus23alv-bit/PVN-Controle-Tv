@@ -2,6 +2,11 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versionamento semântico.
 
+## [3.1.1] — 2026-09-26
+
+### Corrigido
+- Instalador: ao instalar a fonte do jogo num Termux sem fonte própria, a mensagem dizia "a sua ficou em ~/.termux/font.ttf.antes-do-td", mas não havia backup (não existia fonte antes). Agora diz "antes era a fonte padrão". O `--remover` já apagava a fonte corretamente nesse caso.
+
 ## [3.1.0] — 2026-09-26
 
 Legibilidade na tela do Android, efeitos de combate, tela cheia e fonte do Termux, e mais estratégia nas torres. A 3.0.0 está em `legados/v3.0.0/`.

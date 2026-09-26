@@ -71,8 +71,9 @@ mkdir -p "$WORK/cu" "$WORK/cu-prefix/bin"
 out="$(cat "$INST" | HOME="$WORK/cu" TERMUX_VERSION=0.118 PREFIX="$WORK/cu-prefix" TD_REPO_RAW="http://localhost:$PORT" bash -s -- --teclas 2>&1)"
 check "Baixa os arquivos pela rede" 'grep -q "baixado do GitHub" <<<"$out" && [ -f "$WORK/cu/.local/share/tower-defense/td.py" ]'
 check "Script completo apesar de vir pela entrada padrao" 'grep -q "instalado" <<<"$out"'
-cat "$INST" | HOME="$WORK/cu" TERMUX_VERSION=0.118 PREFIX="$WORK/cu-prefix" TD_REPO_RAW="http://localhost:$PORT" bash -s -- --sem-teclas --fonte >/dev/null 2>&1
+out="$(cat "$INST" | HOME="$WORK/cu" TERMUX_VERSION=0.118 PREFIX="$WORK/cu-prefix" TD_REPO_RAW="http://localhost:$PORT" bash -s -- --sem-teclas --fonte 2>&1)"
 check "Pelo curl, a fonte e baixada so quando pedida" 'cmp -s "$SRC/fontes/DejaVuSansMono.ttf" "$WORK/cu/.termux/font.ttf" && [ -e "$WORK/cu/.termux/.td-sem-fonte-original" ]'
+check "Sem fonte propria antes, nao promete backup" 'grep -q "antes era a fonte padrão" <<<"$out" && ! grep -q "a sua ficou" <<<"$out"'
 termux cu "$WORK/cu/.local/share/tower-defense/instalar.sh" --remover >/dev/null 2>&1
 check "Remover apaga o termux.properties criado pelo jogo" '[ ! -e "$WORK/cu/.termux/termux.properties" ]'
 check "Remover apaga a fonte que nao existia antes" '[ ! -e "$WORK/cu/.termux/font.ttf" ] && [ ! -e "$WORK/cu/.termux/.td-sem-fonte-original" ]'

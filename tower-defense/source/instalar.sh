@@ -153,7 +153,11 @@ install_font() {
   fi
   cp "$src" "$FONT"
   CHANGED=1; SUMMARY+=("fonte do jogo instalada")
-  ok "fonte DejaVu Sans Mono no Termux ${D}(a sua ficou em $(short "$FONT_BACKUP"))${N}"
+  if [ -e "$FONT_BACKUP" ]; then
+    ok "fonte DejaVu Sans Mono no Termux ${D}(a sua ficou em $(short "$FONT_BACKUP"))${N}"
+  else
+    ok "fonte DejaVu Sans Mono no Termux ${D}(antes era a fonte padrão)${N}"
+  fi
 }
 
 restore_font() {
