@@ -21,7 +21,8 @@ mkdir -p "$DEST"
 DEST="$(cd "$DEST" && pwd)"
 ZIP="$DEST/$NAME.zip"
 
-WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
+WORK="$(mktemp -d)"; INFO_DIR="$(mktemp -d)"; trap 'rm -rf "$WORK" "$INFO_DIR"' EXIT
+INFO="$INFO_DIR/PACK-INFO.txt"  # fora da pasta varrida: o manifesto nao lista a si mesmo
 git archive --format=tar "$REF" | tar -x -C "$WORK"
 {
   echo "PVN pack"
@@ -34,8 +35,8 @@ git archive --format=tar "$REF" | tar -x -C "$WORK"
   echo
   echo "SHA-256 dos arquivos:"
   (cd "$WORK" && find . -type f | sort | sed 's#^\./##' | xargs -d '\n' sha256sum)
-} > "$WORK/PACK-INFO.txt"
+} > "$INFO"
 
 rm -f "$ZIP"
-git archive --format=zip --prefix="$NAME/" --add-file="$WORK/PACK-INFO.txt" -o "$ZIP" "$REF"
+git archive --format=zip --prefix="$NAME/" --add-file="$INFO" -o "$ZIP" "$REF"
 echo "$ZIP"
