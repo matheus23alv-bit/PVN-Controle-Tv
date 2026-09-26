@@ -9,7 +9,7 @@
 #         --remover (desinstala)
 set -euo pipefail
 
-REPO_RAW="${TV_REPO_RAW:-https://raw.githubusercontent.com/matheus23alv-bit/PVN-Controle-Tv/refs/heads/claude/tower-defense-termux-yjzaeb/controle-tv/source}"
+REPO_RAW="${TV_REPO_RAW:-https://raw.githubusercontent.com/matheus23alv-bit/PVN-Controle-Tv/HEAD/controle-tv/source}"
 APP_DIR="${TV_HOME:-$HOME/.local/share/pvn-controle-tv}"
 SHORTCUTS_DIR="$HOME/.shortcuts"
 
@@ -29,7 +29,8 @@ if is_termux; then BIN_DIR="${PREFIX:-/data/data/com.termux/files/usr}/bin"; els
 
 ask() {
   local answer=""
-  if [ -r /dev/tty ]; then
+  # /dev/tty pode existir sem abrir (sem terminal de controle): testa abrindo de verdade
+  if (exec </dev/tty) 2>/dev/null; then
     printf '    %s%s%s [s/N] ' "$B" "$1" "$N"
     read -r answer </dev/tty || answer=""
   fi

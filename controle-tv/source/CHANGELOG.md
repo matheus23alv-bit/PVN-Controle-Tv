@@ -2,6 +2,15 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versionamento semântico.
 
+## [2.0.1] — 2026-09-26
+
+### Corrigido
+- O instalador baixava os arquivos pelo branch de desenvolvimento; se ele fosse apagado depois do merge, a instalação quebraria. Agora usa o branch principal do repositório (`HEAD`).
+- Sem terminal interativo, a pergunta dos atalhos mostrava o erro "/dev/tty: No such device or address"; agora o instalador testa se o terminal abre antes de perguntar.
+
+### Adicionado
+- `setup-teste.sh` na raiz do repositório: instala o controle e o jogo com um comando e mostra o roteiro de teste.
+
 ## [2.0.0] — 2026-09-26
 
 Mudança de direção: o controle agora comanda a TV de verdade, pelo emissor infravermelho do próprio celular, dentro do terminal do Termux. O simulador de navegador (1.0.x) foi para `legados/v1.0.2-simulador-web/`.

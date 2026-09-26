@@ -2,6 +2,15 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versionamento semântico.
 
+## [2.0.1] — 2026-09-26
+
+### Corrigido
+- O instalador baixava os arquivos pelo branch de desenvolvimento; se ele fosse apagado depois do merge, a instalação quebraria. Agora usa o branch principal do repositório (`HEAD`).
+- Sem terminal interativo, a pergunta da barra de teclas mostrava o erro "/dev/tty: No such device or address"; agora o instalador testa se o terminal abre antes de perguntar.
+
+### Adicionado
+- `TD_SEM_TUTORIAL=1` faz o instalador não oferecer o tutorial no fim (usado pelo `setup-teste.sh` da raiz, que instala os dois projetos).
+
 ## [2.0.0] — 2026-09-26
 
 Jogo refeito para ter visual de jogo dentro do terminal do Termux, com menu, tutorial e mais estratégia. A 1.1.0 está em `legados/v1.1.0/`.
