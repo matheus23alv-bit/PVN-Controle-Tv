@@ -9,7 +9,7 @@
 #         --remover (desinstala e restaura a barra de teclas original)
 set -euo pipefail
 
-REPO_RAW="${TD_REPO_RAW:-https://raw.githubusercontent.com/matheus23alv-bit/PVN-Controle-Tv/refs/heads/claude/tower-defense-termux-yjzaeb/tower-defense/source}"
+REPO_RAW="${TD_REPO_RAW:-https://raw.githubusercontent.com/matheus23alv-bit/PVN-Controle-Tv/HEAD/tower-defense/source}"
 APP_DIR="${TD_HOME:-$HOME/.local/share/tower-defense}"
 PROPS="$HOME/.termux/termux.properties"
 PROPS_BACKUP="$HOME/.termux/termux.properties.antes-do-td"
@@ -34,7 +34,8 @@ if is_termux; then BIN_DIR="${PREFIX:-/data/data/com.termux/files/usr}/bin"; els
 ask() {
   # funciona mesmo com "curl | bash", em que a entrada padrao e o proprio script
   local answer=""
-  if [ -r /dev/tty ]; then
+  # /dev/tty pode existir sem abrir (sem terminal de controle): testa abrindo de verdade
+  if (exec </dev/tty) 2>/dev/null; then
     printf '    %s%s%s [s/N] ' "$B" "$1" "$N"
     read -r answer </dev/tty || answer=""
   fi
@@ -187,6 +188,7 @@ printf '  %sDica: esconda o teclado e jogue tocando na tela.%s\n' "$D" "$N"
 printf '  %sDesinstalar: bash %s/instalar.sh --remover%s\n\n' "$D" "$(short "$APP_DIR")" "$N"
 
 # le a resposta do terminal mesmo com "curl | bash"; sem terminal (testes), nao pergunta
-if [ -r /dev/tty ] && [ -w /dev/tty ] && ask "Abrir o tutorial agora?"; then
+# TD_SEM_TUTORIAL=1: usado pelo setup de teste, que instala os dois projetos em sequência
+if [ -z "${TD_SEM_TUTORIAL:-}" ] && ask "Abrir o tutorial agora?"; then
   exec python3 "$APP_DIR/td.py" --tutorial </dev/tty >/dev/tty 2>&1
 fi

@@ -10,7 +10,7 @@ Com internet, um comando só:
 
 ```bash
 pkg update -y
-curl -fsSL https://raw.githubusercontent.com/matheus23alv-bit/PVN-Controle-Tv/refs/heads/claude/tower-defense-termux-yjzaeb/tower-defense/source/instalar.sh | bash
+curl -fsSL https://raw.githubusercontent.com/matheus23alv-bit/PVN-Controle-Tv/HEAD/tower-defense/source/instalar.sh | bash
 ```
 
 Ou, com esta pasta já no celular: `bash instalar.sh`.

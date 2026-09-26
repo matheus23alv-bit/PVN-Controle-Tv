@@ -7,6 +7,16 @@ Este repositório contém dois projetos independentes. Cada um tem seu próprio 
 | [`controle-tv/`](controle-tv/source/LEIA-ME.md) | Controle remoto de TV pelo infravermelho do celular, no terminal do Termux (Python) | `tv` depois de instalar |
 | [`tower-defense/`](tower-defense/source/LEIA-ME.md) | Jogo tower defense de terminal para Termux (Python) | `td` depois de instalar |
 
+## Teste completo em um comando
+
+No Termux (com o app **Termux:API** do F-Droid já instalado e aberto uma vez):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/matheus23alv-bit/PVN-Controle-Tv/HEAD/setup-teste.sh | bash
+```
+
+Instala os dois projetos, confere o emissor infravermelho do celular e mostra o roteiro de teste. Cada projeto também tem seu instalador próprio, descrito no LEIA-ME dele.
+
 ## Estrutura de cada projeto
 
 ```

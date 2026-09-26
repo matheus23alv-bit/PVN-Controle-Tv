@@ -18,7 +18,7 @@ No Termux, com internet:
 
 ```bash
 pkg update -y
-curl -fsSL https://raw.githubusercontent.com/matheus23alv-bit/PVN-Controle-Tv/refs/heads/claude/tower-defense-termux-yjzaeb/controle-tv/source/instalar.sh | bash
+curl -fsSL https://raw.githubusercontent.com/matheus23alv-bit/PVN-Controle-Tv/HEAD/controle-tv/source/instalar.sh | bash
 ```
 
 Ou, com esta pasta já no celular: `bash instalar.sh`.
