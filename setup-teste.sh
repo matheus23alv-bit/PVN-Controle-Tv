@@ -3,6 +3,7 @@
 # confere o emissor infravermelho e mostra o roteiro de teste.
 #
 #   curl -fsSL https://raw.githubusercontent.com/matheus23alv-bit/PVN-Controle-Tv/HEAD/setup-teste.sh | bash
+#   bash setup-teste.sh          (de dentro do pack zip: instala a versão do pack)
 set -uo pipefail
 
 BASE="${PVN_RAW:-https://raw.githubusercontent.com/matheus23alv-bit/PVN-Controle-Tv/HEAD}"
@@ -40,15 +41,26 @@ else
   warn "fora do Termux: o controle roda só em modo simulado (sem emissor IR)"
 fi
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
-fetch "$TV_REPO_RAW/instalar.sh" "$TMP/tv.sh" && fetch "$TD_REPO_RAW/instalar.sh" "$TMP/td.sh" \
-  || { bad "não consegui baixar os instaladores (sem internet?)"; exit 1; }
-ok "instaladores baixados"
+SELF="${BASH_SOURCE[0]:-}"
+HERE=""
+[ -n "$SELF" ] && [ -f "$SELF" ] && HERE="$(cd "$(dirname "$SELF")" && pwd)"
+if [ -n "$HERE" ] && [ -f "$HERE/controle-tv/source/instalar.sh" ] && [ -f "$HERE/tower-defense/source/instalar.sh" ]; then
+  # rodando de dentro de um pack zip ou do repositório: instala exatamente esta versão
+  TV_INST="$HERE/controle-tv/source/instalar.sh"
+  TD_INST="$HERE/tower-defense/source/instalar.sh"
+  t="~"; ok "usando os arquivos desta pasta (${HERE/#$HOME/$t})"
+else
+  TV_INST="$TMP/tv.sh"; TD_INST="$TMP/td.sh"
+  fetch "$TV_REPO_RAW/instalar.sh" "$TV_INST" && fetch "$TD_REPO_RAW/instalar.sh" "$TD_INST" \
+    || { bad "não consegui baixar os instaladores (sem internet?)"; exit 1; }
+  ok "instaladores baixados do GitHub"
+fi
 
 title "2/4  PVN Controle TV"
-if bash "$TMP/tv.sh" </dev/null; then TV_OK=1; else TV_OK=0; fi
+if bash "$TV_INST" </dev/null; then TV_OK=1; else TV_OK=0; fi
 
 title "3/4  Tower Defense"
-if TD_SEM_TUTORIAL=1 bash "$TMP/td.sh" </dev/null; then TD_OK=1; else TD_OK=0; fi
+if TD_SEM_TUTORIAL=1 bash "$TD_INST" </dev/null; then TD_OK=1; else TD_OK=0; fi
 
 title "4/4  Conferência"
 find_cmd() { command -v "$1" 2>/dev/null || { [ -x "$HOME/.local/bin/$1" ] && echo "$HOME/.local/bin/$1"; }; }

@@ -3,3 +3,6 @@
 *.sh  text eol=lf
 *.py  text eol=lf
 VERSION text eol=lf
+
+# instrucoes de desenvolvimento ficam fora do pack zip
+CLAUDE.md export-ignore
