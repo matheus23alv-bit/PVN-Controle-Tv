@@ -1,49 +1,82 @@
 # PVN Controle TV
 
-Simulador web de controle remoto de TV com emissão de infravermelho simulada. HTML, CSS e JavaScript puros: sem build, sem dependências e sem servidor obrigatório.
+Controle remoto de TV que usa o **emissor infravermelho do próprio celular**, direto no terminal do Termux. Toque nos botões da tela e o celular dispara o sinal para a TV, como um controle comum.
 
-A versão instalada está no arquivo `VERSION` desta pasta, que é a única fonte oficial do número de versão. O histórico de mudanças está em `CHANGELOG.md`.
+A versão está no arquivo `VERSION` desta pasta, que é a única fonte oficial do número de versão. O histórico está em `CHANGELOG.md`.
 
-## Como rodar
+## Do que você precisa
 
-| Onde | Como |
+| Item | Onde conseguir |
 |---|---|
-| Windows | Dois cliques em `iniciar.bat` |
-| Linux / macOS | `bash iniciar.sh` |
-| Celular (Termux) | `bash iniciar.sh` — sobe um servidor local e abre no navegador |
-| Qualquer lugar | Abrir `index.html` no navegador |
+| Celular com emissor infravermelho | Comum em Xiaomi, Redmi e POCO. Confira com `tv --diagnostico` |
+| App **Termux** | F-Droid |
+| App **Termux:API** | F-Droid, da mesma loja do Termux (versões de lojas diferentes não conversam) |
 
-Para publicar, envie o conteúdo desta pasta para qualquer hospedagem estática (Vercel, Netlify, GitHub Pages, Firebase Hosting). Não há configuração extra.
+## Instalação
+
+No Termux, com internet:
+
+```bash
+pkg update -y
+curl -fsSL https://raw.githubusercontent.com/matheus23alv-bit/PVN-Controle-Tv/refs/heads/claude/tower-defense-termux-yjzaeb/controle-tv/source/instalar.sh | bash
+```
+
+Ou, com esta pasta já no celular: `bash instalar.sh`.
+
+O instalador instala o Python e o pacote `termux-api`, testa o emissor do celular, cria o comando `tv` e pergunta se você quer atalhos na tela inicial. Depois abra o app Termux:API uma vez e digite `tv`.
+
+Para atualizar, rode o instalador de novo. Para desinstalar: `bash ~/.local/share/pvn-controle-tv/instalar.sh --remover`.
+
+## Primeiro uso
+
+1. Digite `tv`. Na primeira vez aparece "Qual é a marca da sua TV?".
+2. Toque na marca (Samsung, LG ou Sony). Se não souber, toque em **Descobrir automaticamente**: o controle envia o LIGAR de cada marca e pergunta se a TV reagiu.
+3. Aponte o topo do celular para a TV, a até uns 3 metros, e toque nos botões.
+
+O rodapé confirma cada envio (`✓ Volume + enviado`) ou diz o que deu errado.
+
+## Outras marcas (Philco, TCL, AOC, Semp...)
+
+Baixe o arquivo `.ir` do seu modelo no banco público **Flipper-IRDB** (pasta `TVs/<marca>`), salve no celular e importe:
+
+```bash
+termux-setup-storage
+tv --importar ~/storage/downloads/Philco_PTV32.ir --nome "Philco sala"
+```
+
+Os botões com nomes padrão (Power, Vol_up, Vol_dn, Ch_next, Ch_prev, Mute, Input, setas, Ok, números) são reconhecidos. Protocolos aceitos: NEC, NECext, Samsung32, SIRC, SIRC15, SIRC20, RC5, RC5X, RC6 e sinais brutos (raw).
+
+## Comandos
+
+| Comando | O que faz |
+|---|---|
+| `tv` | Abre o controle |
+| `tv ligar`, `tv vol+`, `tv canal-`, `tv 7` | Envia um botão e sai |
+| `tv --perfil LG ligar` | Usa outra TV só naquele comando |
+| `tv --listar` | Lista as TVs disponíveis |
+| `tv --importar arquivo.ir --nome "Minha TV"` | Importa uma TV do Flipper-IRDB |
+| `tv --diagnostico` | Confere o emissor infravermelho |
+| `tv --atalhos` | Cria 6 atalhos para o app Termux:Widget |
+| `tv --simular` | Abre sem transmitir, para ver a tela |
+
+## Teclas dentro do controle
+
+| Tecla | Botão | Tecla | Botão |
+|---|---|---|---|
+| `l` | Ligar/desligar | `m` | Mudo |
+| `+` `-` | Volume | `.` `,` | Canal |
+| Setas, Enter | Navegação, OK | `v` | Voltar |
+| `i` / `n` | Início / Menu | `f` | Fonte |
+| `0`–`9` | Números | `t` / `d` | Trocar TV / Descobrir |
+| `?` | Ajuda | `q` | Sair |
 
 ## Arquivos
 
 | Arquivo | Função |
 |---|---|
-| `index.html` | Estrutura da TV, do controle e do painel de sinais |
-| `style.css` | Visual, animações e layout responsivo |
-| `app.js` | Estado, comandos, persistência e atalhos de teclado |
-| `iniciar.bat` / `iniciar.sh` | Atalhos para abrir no Windows / Linux / Termux |
-| `VERSION` | Número da versão atual |
+| `tv.py` | Controle completo: tela, protocolos IR, perfis e linha de comando |
+| `instalar.sh` | Instalador, atualizador e desinstalador |
+| `VERSION` | Número da versão |
 | `CHANGELOG.md` | Histórico de alterações |
 
-## Funcionalidades
-
-A TV liga e desliga com animação; volume, mudo e troca de canal (botões, teclado numérico de até dois dígitos e último canal) exibem OSD na tela. A fonte alterna entre TV, HDMI 1, HDMI 2 e AV. Cada comando pisca o LED do controle e é registrado no painel "Sinais infravermelho". Canal, volume, mudo e fonte ficam salvos no navegador (`localStorage`, chave `pvn-controle-tv:state`).
-
-## Atalhos de teclado
-
-| Tecla | Comando |
-|---|---|
-| Espaço | Liga/desliga |
-| `+` / `-` | Volume |
-| `m` | Mudo |
-| `0`–`9` | Canal direto |
-| Setas / Enter | Navegação / OK |
-| Backspace | Voltar |
-| Esc | Início (volta para a fonte TV) |
-
-Atalhos com Ctrl, Alt ou Cmd são ignorados para não conflitar com o navegador. Segurar a tecla repete apenas volume, canal e setas.
-
-## Limitações conhecidas
-
-Menu, setas, OK e Voltar emitem o sinal mas ainda não têm efeito visual na TV (planejado para a v1.1). O infravermelho é simulado: navegadores não têm acesso a emissores IR. Controlar uma TV física exige app nativo com IR blaster ou um hub IR em rede (ex.: Broadlink).
+A TV escolhida e as TVs importadas ficam em `~/.config/pvn-tv/`.

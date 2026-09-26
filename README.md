@@ -4,8 +4,8 @@ Este repositório contém dois projetos independentes. Cada um tem seu próprio 
 
 | Projeto | O que é | Rodar |
 |---|---|---|
-| [`controle-tv/`](controle-tv/source/LEIA-ME.md) | Simulador web de controle remoto de TV (HTML/CSS/JS) | Abrir `controle-tv/source/index.html` |
-| [`tower-defense/`](tower-defense/source/LEIA-ME.md) | Jogo tower defense de terminal para Termux (Python) | `python tower-defense/source/td.py` |
+| [`controle-tv/`](controle-tv/source/LEIA-ME.md) | Controle remoto de TV pelo infravermelho do celular, no terminal do Termux (Python) | `tv` depois de instalar |
+| [`tower-defense/`](tower-defense/source/LEIA-ME.md) | Jogo tower defense de terminal para Termux (Python) | `td` depois de instalar |
 
 ## Estrutura de cada projeto
 

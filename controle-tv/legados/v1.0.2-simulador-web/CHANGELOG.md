@@ -2,25 +2,6 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versionamento semântico.
 
-## [2.0.0] — 2026-09-26
-
-Mudança de direção: o controle agora comanda a TV de verdade, pelo emissor infravermelho do próprio celular, dentro do terminal do Termux. O simulador de navegador (1.0.x) foi para `legados/v1.0.2-simulador-web/`.
-
-### Adicionado
-- `tv.py`: controle remoto em tela cheia no Termux, com botões grandes para tocar (ligar, mudo, fonte, volume, canal, setas, OK, voltar, início, menu, info, exit e teclado numérico) e atalhos de teclado.
-- Transmissão real pelo Termux:API (`termux-infrared-transmit`), em segundo plano para a tela não travar; o rodapé confirma cada envio ou explica o erro.
-- Códigos embutidos de Samsung, LG e Sony, conferidos bit a bit contra os códigos publicados (ex.: Samsung ligar `E0E040BF`, LG ligar `20DF10EF`, Sony ligar `A90`).
-- Codificadores NEC, NEC estendido, Samsung32, Sony SIRC 12/15/20, Philips RC5/RC6 e sinal bruto (raw).
-- Importação de arquivos `.ir` do banco Flipper-IRDB (`tv --importar`), para qualquer outra marca: Philco, TCL, AOC, Semp e outras.
-- "Descobrir TV": envia o LIGAR de cada marca e pergunta se a TV reagiu.
-- Verificação do emissor ao abrir e em `tv --diagnostico`: avisa quando falta o pacote termux-api, quando o app Termux:API não responde e quando o celular não tem emissor IR.
-- Linha de comando para um botão só (`tv ligar`, `tv vol+`, `tv 7`) e atalhos de tela inicial para o app Termux:Widget (`tv --atalhos`).
-- `instalar.sh`: instala Python e termux-api, testa o emissor, cria o comando `tv` e, se quiser, os atalhos; `--remover` desinstala.
-- Modo `--simular` para ver a tela num aparelho sem emissor.
-
-### Removido
-- Simulador de navegador (`index.html`, `style.css`, `app.js`, `iniciar.bat`, `iniciar.sh`), agora em `legados/v1.0.2-simulador-web/`.
-
 ## [1.0.2] — 2026-09-25
 
 ### Adicionado

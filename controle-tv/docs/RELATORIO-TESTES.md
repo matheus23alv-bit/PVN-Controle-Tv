@@ -1,45 +1,38 @@
-# Relatório de testes — PVN Controle TV
+# Relatório de testes — PVN Controle TV 2.0.0
 
-Data: 2026-09-25 · Navegador: Chromium (Playwright 1.56) · Viewports: 360, 390, 768 e 1280 px
+Data: 2026-09-26 · Python 3.11 · terminal real via `tmux` (44×40, retrato de celular) · Termux:API substituído por um emissor falso em `testes/mock-termux-api/`, que registra exatamente o comando que o Android receberia.
 
 ## Resultado
 
-| Versão | Aprovados | Falhas | Pendentes |
-|---|---|---|---|
-| 1.0.0 (legado) | 22 / 31 | 8 | 1 |
-| 1.0.1 (source) | 30 / 31 | 0 | 1 |
+| Bateria | Resultado |
+|---|---|
+| Codificação IR, importação e linha de comando (`test_ir.py`) | 20 / 20 |
+| Tela: toque, teclado, troca de TV, descoberta, erros (`test_tela.sh`) | 27 / 27 |
+| Instalador: Termux com e sem emissor, `curl \| bash`, conflito, remoção (`test_instalador.sh`) | 9 / 9 |
 
-O único pendente nas duas versões é Menu, Navegação e OK sem efeito visível, que é funcionalidade nova planejada para a v1.1 e não defeito de regressão.
+## O que foi conferido
 
-## Erros encontrados na 1.0.0
+**Códigos:** cada botão embutido é codificado e lido de volta, e o resultado é comparado ao código publicado da marca. São 20 botões da LG (ex.: ligar `20DF10EF`), 20 da Samsung (ex.: ligar `E0E040BF`) e 16 da Sony (ex.: ligar `A90`). Todos os padrões respeitam o limite de 2 s do Android e terminam com pulso ligado.
 
-Todos foram reproduzidos no navegador e estão corrigidos na 1.0.1.
+**Protocolos:** NEC com endereço de 8 e 16 bits, Sony em 3 quadros de 45 ms, e RC5 e RC6 decodificados de volta para os bits originais.
 
-| # | Gravidade | Erro | Como reproduzir |
-|---|---|---|---|
-| 1 | Alta | App quebra com estado salvo inválido (`Cannot read properties of undefined`) | Salvar `channelIndex: 99` no `localStorage` e recarregar |
-| 2 | Alta | Espaço com botão focado dispara dois comandos | Clicar em CH+, depois apertar Espaço: liga a TV **e** troca o canal |
-| 3 | Média | LED IV fica aceso para sempre | Apertar qualquer botão e esperar |
-| 4 | Média | Número pendente preso na tela após recarregar | Digitar `5` e recarregar antes de 1 s |
-| 5 | Média | "Último canal" perdido | Ir do 11 ao 7, digitar `7` de novo e apertar ⟲: fica no 7 |
-| 6 | Baixa | Canal inexistente sem aviso | Digitar `99` |
-| 7 | Baixa | 12 botões sem rótulo acessível | Teclado numérico, ⟲ e ⌫ |
-| 8 | Baixa | Zoom bloqueado no celular | `user-scalable=no` no viewport |
+**Importação:** um arquivo no formato do Flipper-IRDB com NECext, NEC, raw, um protocolo não suportado (Kaseikyo) e um botão sem equivalente. Os três primeiros entram e os dois últimos são listados como ignorados.
 
-Também corrigido, fora da bateria automática: Ctrl+- (zoom do navegador) diminuía o volume.
+**Erros:** falta do pacote termux-api, app Termux:API que não responde (limite de 10 s), celular sem emissor, botão sem código na TV escolhida e tela pequena.
 
-## Cobertura da bateria
+## Bug encontrado e corrigido durante os testes
 
-Ligar/desligar; CH± com volta ao início da lista; canal direto com 1 e 2 dígitos; último canal; volume com limite de 100; mudo e retirada do mudo pelo volume; OSD aparecendo e sumindo; comandos ignorados com TV desligada; LED; foco + Espaço; rolagem com setas; estado corrompido; recarga durante digitação; persistência de canal e fonte; ausência de rolagem horizontal nos quatro tamanhos; `aria-label` e zoom.
+Depois de um toque, o rodapé ficava em "enviando..." até a próxima tecla, embora o sinal já tivesse saído. Cada toque gera dois eventos, apertar e soltar. O programa pedia só o de apertar, e o ncurses, ao descartar o de soltar, deixava a leitura de teclas bloqueada, ignorando o tempo limite. A correção foi aceitar os dois eventos e ignorar o de soltar. Há teste de regressão ("Rodapé confirma o envio logo após o toque").
+
+## O que só pode ser testado no seu celular
+
+A saída de luz infravermelha e a reação da TV. Os testes provam que o comando entregue ao Termux:API está correto para cada marca, mas não substituem apontar o celular para a TV. O roteiro está no fim do `docs/ROADMAP.md`.
 
 ## Como rodar
 
 ```bash
-# na raiz do repositório
-python3 -m http.server 8080 &
-npm i -D playwright            # uma vez; ou use um Playwright global
-node controle-tv/testes/e2e.test.js
-BASE_URL=http://localhost:8080/controle-tv/legados/v1.0.0/index.html node controle-tv/testes/e2e.test.js
+cd controle-tv
+python3 -m unittest testes/test_ir.py
+bash testes/test_tela.sh          # precisa de tmux
+bash testes/test_instalador.sh
 ```
-
-Resultados em `testes/resultados/*.json` e capturas em `testes/screenshots/`.
