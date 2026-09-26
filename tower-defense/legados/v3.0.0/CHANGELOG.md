@@ -2,45 +2,6 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versionamento semântico.
 
-## [3.1.0] — 2026-09-26
-
-Legibilidade na tela do Android, efeitos de combate, tela cheia e fonte do Termux, e mais estratégia nas torres. A 3.0.0 está em `legados/v3.0.0/`.
-
-### Corrigido
-- Placar estourava em tela estreita: com ouro e abates altos, ele passava de 30 colunas e o botão `||` cobria o fim. Agora ele encolhe em etapas (espaços menores, depois 1,7k/17M, depois sem abates) e os números têm largura fixa para não empurrar o resto.
-- Textos cortados em telas estreitas (ex.: "Toque numa casa de grama para c"): painel, linha da onda, editor, botões e mensagens têm versão longa e curta, escolhida pela largura.
-- O brilho do monstro atingido durava 0,08 s de jogo (0,04 s em 2×, menos que um quadro) e quase nunca aparecia. Agora dura 0,15 s reais e acontece quando o tiro chega.
-- Células pretas no mapa: quando dois emojis se encostavam por uma coluna, o terminal apagava a metade cortada. Agora monstros, efeitos e rótulos só ocupam células livres.
-- Monstros empilhados se escondiam: agora aparecem lado a lado (escala 2) e com um contador de quantos há no lugar.
-
-### Efeitos de combate (só visuais: o dano continua instantâneo)
-- 🏹 flecha "•" e 💣 bala "●" voam até o alvo; a explosão do Canhão pinta de laranja a área exata do dano; o 🔮 Mago solta um raio magenta; o 🌀 Vórtice pulsa um anel azul.
-- A plataforma da torre dá um clarão a cada tiro.
-- Morte em dois tempos: o monstro fica até o tiro chegar, depois 💥 e 💨; o "+ouro" sobe em seguida.
-- Números de dano (escala 2): somados a cada 0,3 s por monstro, cinza quando o casco da Tartaruga reduz o dano. Dá para desligar em Opções.
-- "imune" quando o Vórtice tenta deixar lento um Morcego; monstro congelado fica azul-claro.
-- Faixas no meio do mapa: "ONDA N", "CHEFE CHEGOU" e "CHEFE DERROTADO +ouro"; a barra de vida do Dragão aparece no topo enquanto ele está vivo.
-- O mapa treme quando um monstro entra na base.
-- Vibração pelo Termux:API (`termux-vibrate`) quando um monstro entra na base e quando o chefe chega ou morre. Dá para desligar em Opções.
-- Botões piscam ao toque.
-
-### Torres
-- Habilidade no nível 3 (★★): Arqueiro atira em 2 monstros; Canhão tem explosão meia casa maior; o raio do Mago atravessa e acerta também quem vem logo atrás; o Vórtice congela o alvo por 0,5 s (chefe e morcego não).
-- Mira por torre: o mais adiantado (padrão), o de mais vida ou o mais perto. Botão 🎯 na barra de ações ou tecla `t`.
-- O painel da torre mostra o dano por segundo, os abates dela e a mira.
-- Barra de ações com 5 botões: Onda, velocidade, 🎯 Mira, ⏫ Melhorar e 💲 Vender.
-
-### Tela e fonte do Termux
-- Opções → **Ajustar tela**: mostra colunas × linhas, a escala e o tamanho necessário para a próxima, uma régua para conferir se cada emoji e símbolo cabe nas suas 2 colunas, e botões para ativar a tela cheia e a fonte do jogo.
-- Instalador: `--tela-cheia` (esconde as barras do Android, com a correção do teclado, e zera a margem lateral), `--fonte` (DejaVu Sans Mono em `~/.termux/font.ttf`, com ★ e barras sem falhas), `--so-tela` (só essas opções, sem reinstalar) e as versões `--sem-...`. Tudo com backup; `--remover` devolve a configuração e a fonte originais byte a byte.
-- A fonte acompanha o jogo em `fontes/`, com a licença (Bitstream Vera/DejaVu, redistribuível).
-
-### Balanceamento
-- O nível 3 custa 2,2× o preço da torre (antes 1,4×): com as habilidades, melhorar ficou forte demais (onda 30 em todos os mapas). Com o preço novo, o jogador automático que mistura e melhora chega à onda 27 em média (3.0: 26,8).
-
-### Desempenho
-- Pior caso medido: 120 torres atirando em todo quadro com 594 efeitos na tela, 8,7 ms por quadro (orçamento de 50 ms).
-
 ## [3.0.0] — 2026-09-26
 
 Tela cheia em retrato (9:16), monstros novos com andar suave e criador de mapas dentro do jogo. A 2.0.1 está em `legados/v2.0.1/`.

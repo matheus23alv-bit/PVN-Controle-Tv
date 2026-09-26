@@ -317,7 +317,7 @@ class TestTorres(unittest.TestCase):
         self.assertIsNone(t.span)
         self.assertTrue(g.upgrade(*spot)[0])
         self.assertFalse(g.upgrade(*spot)[0])
-        self.assertEqual(t.spent, 35 + int(35 * 0.7) + int(35 * 0.7 * 2))
+        self.assertEqual(t.spent, 35 + int(35 * 0.7) + int(35 * 2.2))
 
     def test_vender_devolve_metade_do_gasto(self):
         g = rich_game(1000)
@@ -445,7 +445,7 @@ class TestTorres(unittest.TestCase):
         boss.hp = boss.max_hp * 0.4 + 30
         g._fire()
         self.assertEqual(len([e for e in g.enemies if e.kind == "rapido"]), 3)
-        self.assertTrue(any(fx[0] == "summon" for fx in g.effects))
+        self.assertTrue(any(fx.kind == "summon" for fx in g.effects))
 
     def test_abate_da_ouro_e_efeitos(self):
         g = rich_game(0)
@@ -455,8 +455,19 @@ class TestTorres(unittest.TestCase):
         g._fire()
         self.assertFalse(e.alive)
         self.assertEqual((g.gold, g.kills), (e.gold, 1))
-        self.assertEqual(sorted(fx[0] for fx in g.effects), ["gold", "kill"])
-        self.assertIn(f"+{e.gold}", [fx[5] for fx in g.effects])
+        kinds = sorted(fx.kind for fx in g.effects)
+        self.assertEqual(kinds, ["boom", "corpse", "dmg", "gold", "kill", "shot"])
+        self.assertIn(f"+{e.gold}", [fx.text for fx in g.effects])
+        self.assertEqual(g.towers[spot].kills, 1)
+
+
+def spec_key(mode, e, j, ex, ey, t):
+    """Especificação da mira, escrita à parte do jogo: menor chave = alvo preferido."""
+    if mode == "forte":
+        return (-e.hp, -e.progress, -j)
+    if mode == "perto":
+        return (math.hypot(ex - t.x, ey - t.y), -e.progress, -j)
+    return (-e.progress, -j)
 
 
 def brute_force_fire(g):
@@ -465,13 +476,16 @@ def brute_force_fire(g):
     alive = sorted((e for e in g.enemies if e.alive), key=lambda e: e.progress)
     positions = [g.enemy_pos(e) for e in alive]
     for t in ready:
-        best = None
-        for e, (ex, ey) in zip(alive, positions):
+        cands = []
+        for j, (e, (ex, ey)) in enumerate(zip(alive, positions)):
             visible = t.key == td.MAGE or not e.hidden(g.time)
             if e.alive and visible and math.hypot(ex - t.x, ey - t.y) <= t.range:
-                best = (e, ex, ey)
-        if best:
-            g._hit(t, best[0], best[1], best[2], alive, positions)
+                cands.append((spec_key(t.mode, e, j, ex, ey, t), j))
+        cands.sort()
+        n = 2 if t.key == "1" and t.level == 3 else 1
+        for _, j in cands[:n]:
+            g._hit(t, alive[j], positions[j][0], positions[j][1], alive, positions)
+        if cands:
             t.last = g.time
 
 
@@ -487,6 +501,7 @@ class TestMiraOtimizada(unittest.TestCase):
             for x, y in rnd.sample(free, rnd.randint(1, min(30, len(free)))):
                 t = td.Tower(x, y, rnd.choice("1234"))
                 t.level = rnd.randint(1, 3)
+                t.mode = rnd.choice(td.TARGET_MODES)
                 t.last = rnd.choice([-999.0, g.time - 0.2])
                 g.towers[(x, y)] = t
             for _ in range(rnd.randint(0, 40)):
@@ -497,9 +512,11 @@ class TestMiraOtimizada(unittest.TestCase):
             ref = copy.deepcopy(g)
             g._fire()
             brute_force_fire(ref)
-            self.assertEqual([(e.kind, round(e.hp, 6), e.alive, e.slow_factor) for e in g.enemies],
-                             [(e.kind, round(e.hp, 6), e.alive, e.slow_factor) for e in ref.enemies])
+            self.assertEqual([(e.kind, round(e.hp, 6), e.alive, e.slow_factor, e.freeze_until) for e in g.enemies],
+                             [(e.kind, round(e.hp, 6), e.alive, e.slow_factor, e.freeze_until) for e in ref.enemies])
             self.assertEqual((g.gold, g.kills), (ref.gold, ref.kills))
+            self.assertEqual([(t.kills, round(t.dealt, 6), t.last) for t in g.towers.values()],
+                             [(t.kills, round(t.dealt, 6), t.last) for t in ref.towers.values()])
 
 
 class TestOndas(unittest.TestCase):
@@ -591,6 +608,195 @@ class TestOndas(unittest.TestCase):
             mage, archer = td.tutorial_spots(g)
             self.assertTrue(g.can_build(*mage) and g.can_build(*archer))
             self.assertNotEqual(mage, archer)
+
+
+class TestNivel3EMira(unittest.TestCase):
+    def setUp(self):
+        self.g = rich_game()
+        self.spot = spot_next_to_path(self.g, 20)
+
+    def tower(self, key, level=3):
+        self.g.build(*self.spot, key)
+        t = self.g.towers[self.spot]
+        t.level = level
+        t.span = None
+        return t
+
+    def test_arqueiro_nivel_3_atira_em_2(self):
+        t = self.tower("1")
+        a = put_enemy(self.g, progress=20.0, hp=1000)
+        b = put_enemy(self.g, progress=19.5, hp=1000)
+        c = put_enemy(self.g, progress=19.0, hp=1000)
+        self.g._fire()
+        self.assertEqual([round(1000 - e.hp, 6) for e in (a, b, c)], [round(t.damage, 6)] * 2 + [0])
+        self.assertAlmostEqual(t.dps, t.damage * 2 / t.rate)
+
+    def test_canhao_nivel_3_explode_mais_longe(self):
+        for level, hit in ((1, False), (3, True)):
+            g = rich_game()
+            spot = spot_next_to_path(g, 20)
+            g.build(*spot, "2")
+            g.towers[spot].level = level
+            target = put_enemy(g, progress=20.0, hp=1000)
+            near = put_enemy(g, progress=18.6, hp=1000)  # 1,4 casa atrás
+            g._fire()
+            self.assertLess(target.hp, 1000)
+            self.assertEqual(near.hp < 1000, hit, level)
+
+    def test_mago_nivel_3_atravessa_quem_vem_atras(self):
+        t = self.tower("3")
+        target = put_enemy(self.g, "tartaruga", progress=21.0, hp=1000)
+        behind = put_enemy(self.g, "tartaruga", progress=20.2, hp=1000)
+        far = put_enemy(self.g, progress=17.0, hp=1000)
+        self.g._fire()
+        self.assertAlmostEqual(1000 - target.hp, t.damage)
+        self.assertAlmostEqual(1000 - behind.hp, t.damage, msg="dano cheio e sem casco")
+        self.assertEqual(far.hp, 1000)
+        self.assertTrue(any(fx.kind == "beam" for fx in self.g.effects))
+
+    def test_mago_nivel_2_nao_atravessa(self):
+        self.tower("3", level=2)
+        put_enemy(self.g, progress=21.0, hp=1000)
+        behind = put_enemy(self.g, progress=20.2, hp=1000)
+        self.g._fire()
+        self.assertEqual(behind.hp, 1000)
+
+    def test_vortice_nivel_3_congela_o_alvo(self):
+        self.tower("4")
+        e = put_enemy(self.g, progress=20.0, hp=1000)
+        self.g._fire()
+        self.assertGreater(e.freeze_until, self.g.time)
+        p0 = e.progress
+        self.g._step(0.3)
+        self.assertEqual(e.progress, p0, "congelado não anda")
+        self.g._step(0.3)
+        self.assertGreater(e.progress, p0)
+        for kind in ("chefe", "morcego"):
+            g = rich_game()
+            spot = spot_next_to_path(g, 20)
+            g.build(*spot, "4")
+            g.towers[spot].level = 3
+            other = put_enemy(g, kind, progress=20.0, hp=10_000)
+            g._fire()
+            self.assertLess(other.freeze_until, g.time, kind)
+
+    def test_morcego_mostra_imune(self):
+        self.tower("4", level=1)
+        put_enemy(self.g, "morcego", progress=20.0, hp=1000)
+        self.g._fire()
+        self.assertIn("imune", [fx.text for fx in self.g.effects if fx.kind == "immune"])
+
+    def test_modos_de_mira(self):
+        t = self.tower("1", level=1)
+        weak = put_enemy(self.g, progress=20.6, hp=30)
+        strong = put_enemy(self.g, progress=19.4, hp=500)
+        self.g._fire()
+        self.assertLess(weak.hp, 30, "primeiro: o mais adiantado")
+        self.assertEqual(self.g.cycle_mode(*self.spot), (True, "Arqueiro mira: o de mais vida"))
+        t.last = -999
+        self.g._fire()
+        self.assertLess(strong.hp, 500, "forte: o de mais vida")
+        self.g.cycle_mode(*self.spot)
+        self.assertEqual(t.mode, "perto")
+        self.g.cycle_mode(*self.spot)
+        self.assertEqual(t.mode, "primeiro")
+        self.assertFalse(self.g.cycle_mode(0, 0)[0])
+
+    def test_mira_perto(self):
+        t = self.tower("3", level=1)
+        t.mode = "perto"
+        ex, ey = self.g.path[20]
+        near_idx = min(range(len(self.g.path)), key=lambda i: math.hypot(self.g.path[i][0] - t.x, self.g.path[i][1] - t.y))
+        near = put_enemy(self.g, progress=float(near_idx), hp=1000)
+        ahead = put_enemy(self.g, progress=float(near_idx) + 2.5, hp=1000)
+        self.g._fire()
+        self.assertLess(near.hp, 1000)
+        self.assertEqual(ahead.hp, 1000)
+
+    def test_upgrade_ao_nivel_3_anuncia_a_habilidade(self):
+        self.g.build(*self.spot, "2")
+        self.g.upgrade(*self.spot)
+        ok, msg = self.g.upgrade(*self.spot)
+        self.assertEqual(msg, "Canhão nível 3: explosão maior")
+
+
+class TestEfeitos(unittest.TestCase):
+    def test_duracao_em_tempo_real(self):
+        g = rich_game()
+        f1 = g.fx("kill", 1, 1, 0.3)
+        g.speed = 2
+        f2 = g.fx("kill", 1, 1, 0.3, delay=0.1)
+        self.assertAlmostEqual(f1.t1 - f1.t0, 0.3)
+        self.assertAlmostEqual(f2.t1 - f2.t0, 0.6, msg="em 2x o relógio do jogo corre 2x")
+        self.assertAlmostEqual(f2.t0 - g.time, 0.2)
+
+    def test_numero_de_dano_soma_os_tiros(self):
+        g = rich_game()
+        spot = spot_next_to_path(g, 20)
+        g.build(*spot, "1")
+        t = put_enemy(g, "tartaruga", progress=20.0, hp=1000)
+        g._fire()
+        g.time += 0.2
+        g.towers[spot].last = -999
+        g._fire()
+        nums = [fx for fx in g.effects if fx.kind == "dmg"]
+        self.assertEqual(len(nums), 1)
+        self.assertEqual(nums[0].text, "-4")
+        self.assertTrue(nums[0].muted, "casco deixa o número cinza")
+        g.time += 0.5
+        g.towers[spot].last = -999
+        g._fire()
+        self.assertEqual(len([fx for fx in g.effects if fx.kind == "dmg"]), 2)
+        self.assertEqual(round(g.towers[spot].dealt, 6), 6.0)
+
+    def test_eventos_para_vibrar_e_faixas(self):
+        g = td.Game(seed=1)
+        g.next_wave()
+        self.assertIn("ONDA 1", [fx.text for fx in g.effects if fx.kind == "banner"])
+        g.queue = ["chefe"]
+        g.update(0.1)
+        self.assertIn("chefe", g.events)
+        boss = g.enemies[-1]
+        boss.progress = len(g.path) - 1.01
+        g.update(0.2)
+        self.assertIn("vazou", g.events)
+        self.assertGreater(g.shake_until, g.time)
+
+    def test_chefe_morto_tem_faixa(self):
+        g = rich_game()
+        g.wave = 5
+        spot = spot_next_to_path(g, 20)
+        g.build(*spot, "2")
+        put_enemy(g, "chefe", progress=20.0, hp=1)
+        g._fire()
+        self.assertIn("chefe_morto", g.events)
+        self.assertTrue(any(fx.kind == "banner" and fx.text.startswith("chefe_morto:") for fx in g.effects))
+
+    def test_sem_visual_nao_cria_efeitos(self):
+        g = td.Game(seed=1, visual=False)
+        g.gold = 1000
+        g.build(*spot_next_to_path(g, 5), "2")
+        g.next_wave()
+        for _ in range(200):
+            g.update(0.1)
+        self.assertEqual((g.effects, g.events), ([], []))
+        self.assertGreater(g.kills, 0)
+
+
+class TestTextoCurto(unittest.TestCase):
+    def test_numeros_curtos(self):
+        self.assertEqual([td.short_num(n) for n in (7, 999, 1000, 1726, 9999, 12345, 2_500_000)],
+                         ["7", "999", "1k", "1,7k", "10k", "12k", "2M"])
+
+    def test_primeira_versao_que_cabe(self):
+        self.assertEqual(td.fit(["texto longo demais", "curto"], 10), "curto")
+        self.assertEqual(td.fit(["cabe"], 10), "cabe")
+        self.assertEqual(td.fit(["nenhum cabe aqui", "nem este aqui"], 6), "nem es")
+
+    def test_erro_de_mapa_tem_versao_curta(self):
+        e = error_of(mapa("S#####....", "........#.", ".B#######.", "..........", ".........."))
+        self.assertEqual(e.short, "Sem saída: c6 l1")
+        self.assertLessEqual(td.text_width(" ✘ " + e.short), 30)
 
 
 class TestTela(unittest.TestCase):

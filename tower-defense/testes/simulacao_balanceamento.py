@@ -29,7 +29,7 @@ def best_spots(g, key):
 
 def play(mapa, order, seed, upgrade=False, max_waves=50, dt=0.1):
     """order: sequência de torres a comprar em rodízio. upgrade: melhora antes de construir nova."""
-    g = td.Game(mapa, seed=seed)
+    g = td.Game(mapa, seed=seed, visual=False)
     spots = {k: best_spots(g, k) for k in td.TOWERS}
     n = 0
     while g.wave < max_waves:

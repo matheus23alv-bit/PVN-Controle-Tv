@@ -6,3 +6,7 @@ VERSION text eol=lf
 
 # instrucoes de desenvolvimento ficam fora do pack zip
 CLAUDE.md export-ignore
+
+# arquivos binarios: nunca converter fim de linha
+*.ttf binary
+*.png binary
