@@ -1,99 +1,98 @@
-# Relatório — Tower Defense 3.0.0
+# Relatório — Tower Defense 3.1.0
 
-Data: 2026-09-26 · Python 3.11 · terminal real via `tmux` em retrato de celular (46×50 e 32×26) com 256 cores. Telas conferidas em imagem, com a fonte de emoji do Android (Noto Color Emoji); as capturas estão em `docs/capturas/`.
+Data: 2026-09-26 · Python 3.11 · terminal real via `tmux` em retrato de celular (46×50, 32×30, 32×26 e 30×26) com 256 cores. Telas conferidas em imagem com a fonte de emoji do Android (Noto Color Emoji). As capturas estão em `docs/capturas/`.
 
 ## Pedido e entrega
 
-| Pedido | Entregue |
+Os quatro pacotes propostos foram implementados.
+
+| Pacote | Entregue |
 |---|---|
-| Tela cheia, celular em pé (9:16) | Mapas em retrato (11×19) e casas em escala 1×, 2× ou 3× até preencherem a altura. O placar fica no topo e os controles embaixo, perto do polegar. |
-| Melhorar os monstros e a caminhada | 4 monstros novos com habilidades (🐌 🐢 🦇 👻), Dragão que chama ratos e andar suave entre casas. Cada monstro tem ritmo próprio, com barra de vida, lentidão visível e "+ouro" no abate. |
-| Motor e criador de mapas | Editor na tela com trilha pelos cantos, validação ao vivo, desfazer, gerar, testar e salvar. Tela de Mapas com miniatura. Gerador por semente. Arquivos `.mapa` em texto e comandos `--gerar`, `--validar`, `--importar` e `--editor`. |
+| A — correções de legibilidade | Placar compacto; textos em versão longa e curta; brilho de acerto em tempo real; monstros lado a lado com contador; botão pisca ao toque; fim das células pretas |
+| B — efeitos de combate | Flecha e bala voando, explosão na área exata, raio do Mago, anel do Vórtice, clarão da torre, morte com 💥 e 💨, números de dano, "imune", faixas de onda e chefe, barra do chefe, tremida e vibração |
+| C — tela e fonte do Termux | Opções → Ajustar tela (escala, régua de emojis, botões); instalador com `--tela-cheia`, `--fonte` e `--so-tela`, com backup e restauração byte a byte |
+| D — profundidade do combate | Habilidade no nível 3 para cada torre, mira por torre (1º, forte, perto), dano por segundo e abates no painel, preço do nível 3 recalibrado |
 
 ## Resultado dos testes
 
 | Bateria | Resultado |
 |---|---|
-| Lógica (`test_logica.py`): mapas, validação, gerador, arquivos, editor, torres, monstros novos, ondas, escala da tela | 54 / 54 |
-| Tela (`test_terminal.sh`): menu, tutorial inteiro pelo toque, partida, pausa, Mapas, criador de mapas, fim de jogo, sem emoji, escalas 1 e 2, linha de comando | 76 / 76 |
-| Instalador (`test_instalador.sh`): Linux, Termux com barra própria, `curl \| bash`, falhas | 17 / 17 |
-| Controle da TV (inalterado): `test_ir.py`, `test_tela.sh`, `test_instalador.sh` | 20 / 20 · 27 / 27 · 9 / 9 |
+| Lógica (`test_logica.py`) | 71 / 71 |
+| Tela (`test_terminal.sh`) | 90 / 90 |
+| Instalador (`test_instalador.sh`) | 28 / 28 |
+| Controle da TV (inalterado): IR, tela, instalador | 20 / 20 · 27 / 27 · 9 / 9 |
 | Pack (`testes/test_pack.sh`, raiz) | 18 / 18 |
 
-### O que os testes garantem
+### O que os testes novos garantem
 
-**Mapas:** os 3 mapas prontos são jogáveis e têm trilha contínua de 63 a 66 casas. Cada erro de desenho tem mensagem e casa próprias: falta entrada ou base, entrada ou base repetida, entrada solta, trilha que se divide, voltas encostadas, sem saída, trilha solta, curta ou sem grama. O gerador foi testado com 360 sementes nos 3 tamanhos: todos os mapas saíram jogáveis, a mesma semente sempre gera o mesmo mapa e os enfeites ficam longe da trilha. Salvar, renomear, nomes reservados, nomes repetidos e arquivos quebrados na pasta também foram testados.
-
-**Editor:** a entrada liga a ferramenta Trilha e os cantos preenchem as retas. Tocar numa trilha existente continua dela. Há uma entrada e uma base só. O teste também cobre desfazer, redimensionar (e desfazer o tamanho), limpar e gerar.
-
-**Monstros:**
-
-- O casco tira 4 de dano, com mínimo de 25%, e o Mago o ignora.
-- O Fantasma sumido só é alvo do Mago.
-- A Lesma só se cura depois de 1 s sem apanhar e nunca passa da vida máxima.
-- O Morcego não fica lento.
-- O Dragão chama 3 ratos uma única vez.
-- As ondas só trazem monstros já liberados, e a prévia é exatamente a próxima onda.
-
-**Mira:** a mira otimizada foi comparada com um gabarito de força bruta em 400 cenários. Eles cobrem 6 mapas, os 8 monstros, as 4 torres, os níveis 1 a 3, fantasmas sumidos e casco, e o resultado foi idêntico em todos.
-
-**Simulação estável:** passos de 0,25 s dão o mesmo resultado que passos de 0,05 s, inclusive com monstros novos, então celular lento não muda o jogo.
-
-**Tela:** a escala certa foi conferida para 5 tamanhos de tela. Cada toque cai na casa certa, inclusive na segunda coluna do emoji, e a posição entre duas casas fica no meio delas.
+- **Nível 3:** o Arqueiro acerta 2 monstros e só ele; o Canhão alcança 1,4 casa só no nível 3; o raio do Mago acerta com dano cheio quem vem atrás, sem casco, e não quem vai à frente; o Vórtice congela, mas não o chefe nem o morcego.
+- **Mira:** os três modos escolhem o monstro certo e o botão percorre os três.
+- **Gabarito da mira:** o gabarito de força bruta foi reescrito à parte, com os modos de mira e o nível 3. Em 400 cenários, com 6 mapas, 8 monstros, as 4 torres, níveis 1 a 3 e modos sorteados, bateram vida, mortes, lentidão, congelamento, ouro, abates e dano de cada torre.
+- **Efeitos:** a duração vale em tempo real (em 2× o relógio do jogo corre 2×). Os números de dano somam 0,3 s por monstro e ficam cinza com casco. Leitura de faixa e eventos de vibração conferidas. A simulação sem efeitos não cria nenhum.
+- **Tela:** mira pelo botão e pela tecla; painel com "14/s · 💀0 · mira 1º"; anúncio do nível 3; faixa e barra do chefe; vibração com um `termux-vibrate` falso; placar com "💰17M" em 30 colunas.
+- **Opções:** números de dano e vibração ficam salvos. Ajustar tela ativa a tela cheia e instala e tira a fonte, conferido no `termux.properties` e na `font.ttf`.
+- **Instalador:** a tela cheia troca a configuração antiga da pessoa sem duplicar; a fonte da pessoa fica guardada; `--so-tela` não reinstala o jogo; `--remover` devolve tudo byte a byte. Pelo `curl`, a fonte só é baixada quando pedida.
 
 ## Balanceamento
 
-Jogadores automáticos compram entre as ondas sempre na casa de maior cobertura. Foram 3 partidas por estratégia em cada mapa, e a tabela mostra a onda média alcançada.
+Jogadores automáticos, com 3 partidas por estratégia e mapa. A tabela mostra a onda média.
 
-| Estratégia | Serpente | Espiral | Rio | Aleatório 1 | Aleatório 2 | 2.0.1 (mapa único) |
-|---|---|---|---|---|---|---|
-| Só Arqueiro | 23,3 | 24,0 | 22,0 | 23,3 | 21,7 | 25,0 |
-| Só Canhão | 25,0 | 23,3 | 23,3 | 25,0 | 23,3 | 25,0 |
-| Só Mago | 25,0 | 27,0 | 24,0 | 25,0 | 24,0 | 25,7 |
-| Só Vórtice | 6,0 | 6,3 | 6,0 | 6,0 | 6,0 | 8,3 |
-| Misto | 25,0 | 25,0 | 25,0 | 25,0 | 25,0 | 25,0 |
-| Misto + melhorar | 25,0 | 29,7 | 25,0 | 29,3 | 25,0 | 26,7 |
+| Estratégia | Serpente | Espiral | Rio | Aleatório 1 | Aleatório 2 |
+|---|---|---|---|---|---|
+| Só Arqueiro | 23,3 | 24,0 | 22,0 | 23,3 | 21,7 |
+| Só Canhão | 25,0 | 23,3 | 23,3 | 25,0 | 23,3 |
+| Só Mago | 25,0 | 27,0 | 24,0 | 25,0 | 24,0 |
+| Misto | 25,0 | 25,0 | 25,0 | 25,0 | 25,0 |
+| Misto + melhorar | 26,7 | 30,0 | 25,0 | 28,3 | 25,0 |
 
-A dificuldade ficou no mesmo nível da 2.0.1, e nenhum número de balanceamento precisou mudar. Os monstros novos puniram quem usa uma torre só: só Arqueiro caiu cerca de 2 ondas por causa do casco da Tartaruga, enquanto misturar e melhorar continua sendo o melhor caminho. A Espiral é o mapa mais fácil, porque o centro fica coberto por várias voltas. A onda 25 é o muro de 3 dragões.
+Com as habilidades e o preço antigo do nível 3 (1,4× a torre), quem melhorava chegava à onda 30 em todos os mapas. Isso baixaria a dificuldade. A varredura de preço deu:
+
+| Preço do nível 3 | Onda média de "misto + melhorar" |
+|---|---|
+| 1,4× (antigo) | 30,0 |
+| 1,8× | 29,3 |
+| **2,2× (escolhido)** | **27,0** |
+| 2,6× | 26,0 |
+
+Com 2,2× a média volta ao nível da 3.0 (26,8), e a habilidade vira uma decisão de investimento. As estratégias sem melhoria não mudaram, porque o nível 3 não as afeta.
 
 ## Desempenho
 
-Medido em terminal real, na escala 2 (casas de 4×2), com emojis e 256 cores:
+Medido em terminal real, na escala 2, com todas as torres atirando em todo quadro, que é o pior caso:
 
-| Cenário | Lógica | Desenho | Total |
+| Cenário | Lógica | Efeitos + desenho | Total |
 |---|---|---|---|
-| 60 torres, 60 monstros, todas atirando | 0,46 ms | 0,79 ms | 1,25 ms |
-| 120 torres, 120 monstros | 1,58 ms | 1,04 ms | 2,62 ms |
+| 60 torres, 60 monstros, 250 efeitos na tela | 0,56 ms | 3,46 ms | 4,03 ms |
+| 120 torres, 120 monstros, 594 efeitos na tela | 1,83 ms | 6,83 ms | 8,67 ms |
 
-O limite a 20 quadros por segundo é de 50 ms por quadro, então sobra margem de 19× para celulares lentos. O desenho do fundo do mapa fica guardado e só é refeito quando o mapa muda. Parado entre ondas, no editor ou na tela de Mapas, o jogo não redesenha a tela.
+O limite a 20 quadros por segundo é de 50 ms. Os efeitos custam mais que a lógica, mas mesmo o caso extremo usa 17% do limite. Numa partida normal há dezenas de efeitos, não centenas. Parado, o jogo continua sem redesenhar a tela.
 
 ## Problemas encontrados e corrigidos durante o desenvolvimento
 
-| Problema | Correção |
-|---|---|
-| Trilhas geradas saíam curtas (média de 43 casas no 11×19, contra 63 a 66 nos prontos), o que deixava os mapas aleatórios mais difíceis | Faixas quase sempre cruzam o mapa, com mínimo de 1/5 da área: a média subiu para 50 casas |
-| Textura de grama aparecia sob o cursor e sob as torres | Casa do cursor e de torre desenhadas lisas |
-| Menu grudado no topo em telas altas, com metade da tela vazia | Bloco do menu centralizado na altura |
-| Tela de Mapas com um vão grande entre a lista e a miniatura | Lista do tamanho dos mapas e miniatura centralizada no espaço livre |
-| Dicas do editor cortadas na largura de 46 colunas | Textos encurtados para caber |
-| Voltar da ajuda aberta na pausa soltava a partida | Voltar da ajuda reabre a pausa |
-| Tocar no título "MAPAS" voltava ao menu sem querer | Só o botão "◀ Voltar" volta |
-| O cache do desenho das casas reconhecia o mapa pelo endereço de memória, que pode ser reaproveitado por outro objeto | O cache guarda o próprio mapa |
+| Problema | Como apareceu | Correção |
+|---|---|---|
+| O Arqueiro nível 3 explodia como o Canhão | Teste do nível 3: o terceiro monstro levou dano | O bônus de raio vale só para quem já explode |
+| Chamado pelo jogo, o instalador perguntava sobre a fonte e ficava esperando resposta | Captura da tela Ajustar tela parada | `--so-tela` só mexe no que foi pedido, e o jogo roda o instalador sem terminal |
+| Células pretas perto dos monstros (já existia na 3.0) | Revisão das imagens | Mapa de ocupação: nada corta emoji pela metade |
+| Números de dano colados ("-22-44-35") | Revisão das imagens | Números em linha livre, com um espaço entre eles |
+| Rótulos colados na barra de ações em 30 colunas ("chamarnormal") | Captura em 30×26 | Versões curtas pedem 1 coluna de folga |
+| Mensagem "Arqueiro nível 3: 2 alvos por" cortada | Captura em 30×26 | Mensagens de ação com versão curta |
+| Resultado do botão de tela cheia cortado ("recarrego") | Captura em 46 colunas | Versão curta da mensagem |
 
 ## O que só o seu celular confirma
 
-- **Tamanho da tela no seu aparelho:** o jogo escolhe a escala sozinho. Confira se o mapa ocupa bem a tela.
-- **Alinhamento dos emojis na sua fonte:** o 🐌 e o 🦇 são novos. Se desalinharem, use Opções → Emojis: NÃO.
-- **Toques na barra de ferramentas do editor:** são 6 botões lado a lado, 7 colunas cada.
-- **Teclado com acento no nome do mapa:** o teclado do Android envia os acentos em bytes, e o jogo os monta. Isso foi testado com "Trilha Ágil" no terminal, mas não em aparelho.
-- **Sensação da dificuldade com monstros novos.**
+- **Vibração:** depende do app Termux:API instalado. Sem ele, o jogo segue sem vibrar e Opções mostra "(sem Termux:API)".
+- **Tela cheia e fonte:** o Termux precisa recarregar. O jogo chama `termux-reload-settings`; se nada mudar, feche e abra o Termux.
+- **Margem lateral:** `terminal-margin-horizontal` existe no Termux 0.118 ou mais novo. Em versões antigas ela é ignorada, sem erro.
+- **Régua de emojis:** mostra se a fonte do seu aparelho alinha os 25 emojis e os 10 símbolos do jogo.
+- **Legibilidade dos efeitos na tela física:** números de dano e a barra do chefe.
 
 ## Como rodar
 
 ```bash
 cd tower-defense
 python3 -m unittest testes/test_logica.py
-bash testes/test_terminal.sh        # precisa de tmux; ~1 minuto
+bash testes/test_terminal.sh        # precisa de tmux; ~2 minutos
 bash testes/test_instalador.sh
 python3 testes/simulacao_balanceamento.py source/td.py 3    # ~2 minutos
 python3 testes/benchmark.py 2> resultado.txt                # num terminal
@@ -105,8 +104,9 @@ python3 testes/benchmark.py 2> resultado.txt                # num terminal
 |---|---|
 | `1-menu.png` | Menu com a faixa animada |
 | `2-tutorial.png` | Tutorial, passo 3, com o alcance do Mago |
-| `3-partida.png` | Onda 8 com monstros novos, barras de vida, estrelas de nível e alcance |
-| `4-editor.png` | Criador de mapas: rio com ponte, árvores e "✔ Pronto para jogar" |
-| `5-mapas.png` | Tela Mapas: prontos, seus mapas e miniatura |
+| `3-partida.png` | Onda 10 com chefe: barra do Dragão no topo, torres nível 3 (★★), números de dano, "+ouro", monstros lado a lado |
+| `4-editor.png` | Criador de mapas: rio com ponte e "✔ Pronto para jogar" |
+| `5-mapas.png` | Tela Mapas com miniatura |
 | `6-sem-emoji.png` | Modo com letras no mapa Rio |
-| `7-escala1.png` | Tela menor (32×30), na escala 1 |
+| `7-escala1.png` | Combate em tela menor (32×30), escala 1, com contadores e botões curtos |
+| `8-ajustar-tela.png` | Ajustar tela: escala, régua de emojis e símbolos, botões de tela cheia e fonte |

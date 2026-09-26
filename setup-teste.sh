@@ -86,7 +86,8 @@ printf '  %s🏰 Tower Defense%s\n' "$B" "$N"
 printf '   1. digite %std%s e abra o Tutorial (tela cheia, celular em pé)\n' "$B" "$N"
 printf '   2. jogue só com toques; anote a onda em que perdeu\n'
 printf '   3. menu → Criar mapa: entrada, cantos da trilha, base, ▶ Testar\n'
-printf '   4. se os emojis desalinharem: Opções → Emojis: NÃO\n'
+printf '   4. Opções → Ajustar tela: confira a régua; ative tela cheia e fonte\n'
+printf '   5. se os emojis desalinharem: Opções → Emojis: NÃO\n'
 printf '\n  %sRoteiros completos:%s\n' "$D" "$N"
 printf '  %s%s/controle-tv/docs/ROADMAP.md%s\n' "$D" "$REPO_WEB" "$N"
 printf '  %s%s/tower-defense/docs/ROADMAP.md%s\n\n' "$D" "$REPO_WEB" "$N"

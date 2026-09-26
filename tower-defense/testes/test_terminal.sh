@@ -150,6 +150,27 @@ check "Apagar pede confirmação" 'screen | grep -q "Apagar Trilha Ágil?"'
 tap "Apagar" 2
 check "Apagar remove o arquivo" '[ ! -e "$WORK/h/.config/td-termux/mapas/trilha-agil.mapa" ] && screen | grep -q "nenhum ainda"'
 
+echo "== Combate 3.1: mira, painel, nível 3, faixas, vibração"
+mkdir -p "$WORK/vib"; printf '#!/bin/sh\necho "$@" >> "%s/vib/log"\n' "$WORK" > "$WORK/vib/termux-vibrate"; chmod +x "$WORK/vib/termux-vibrate"
+BOSS="python3 -c 'import td; td.START_GOLD=500; td.START_LIFE=2; td.make_wave=lambda n, rng: [\"chefe\"]; td.ENEMIES[\"chefe\"].update(speed=6); td.main([\"--jogar\"])'"
+HOMEX=c start 46 50 "PATH='$WORK/vib':\$PATH $BOSS"
+key 2 Right Right Enter; sleep 2.1
+check "Painel da torre mostra dano por segundo, abates e mira" 'screen | grep -q "Canhão nv1 · 14/s · 💀0 · mira 1º"'
+tap "Mira"
+check "🎯 troca a mira da torre" 'screen | grep -q "Canhão mira: o de mais vida" && screen | grep -q "🎯 forte"'
+key t
+check "t também troca a mira" 'screen | grep -q "mira: o mais perto"'
+key u u
+check "Nível 3 anuncia a habilidade" 'screen | grep -q "Canhão nível 3: explosão maior" && screen | grep -q "★★"'
+key n; sleep .4
+check "Faixa da onda e do chefe no meio do mapa" 'screen | grep -q "ONDA 1\|CHEFE CHEGOU"'
+sleep 1
+check "Barra de vida do chefe no topo" 'row 2 | grep -q "🐉" && row 2 | grep -q "%"'
+for i in $(seq 1 12); do [ -s "$WORK/vib/log" ] && grep -q "70" "$WORK/vib/log" && break; sleep 1; done
+check "Vibra quando o chefe chega e quando um monstro entra na base" 'grep -q "^-d 250" "$WORK/vib/log" && grep -q "^-d 70" "$WORK/vib/log"'
+start 30 26 "python3 -c 'import td; td.START_GOLD=17264000; td.main([\"--jogar\"])'"
+check "Placar compacto numa tela de 30 colunas" 'row 1 | grep -q "💰17M" && row 1 | grep -q "||"'
+
 echo "== Fim de jogo e recorde"
 HOMEX=f start 46 50 "$FAST"
 key n; sleep 3
@@ -165,9 +186,24 @@ check "Emojis: NÃO troca por letras" 'screen | grep -q "Emojis: NÃO (letras)" 
 key q; tap "Jogar"
 check "Partida sem emoji desenha letras" 'screen | grep -q "S " && ! screen | grep -q "🚪" && row 1 | grep -q "V:20"'
 
+echo "== Opções 3.1 e Ajustar tela"
+HOMEX=t start 46 50 "TERMUX_VERSION=0.118 python3 td.py"
+tap "Opções"; tap "Números de dano"
+check "Números de dano desliga e fica salvo" 'screen | grep -q "Números de dano: NÃO" && HOMEX=t cfg | grep -q "\"numeros\": false"'
+tap "Vibrar"
+check "Vibrar desliga e fica salvo" 'screen | grep -q "Vibrar: NÃO" && HOMEX=t cfg | grep -q "\"vibrar\": false"'
+tap "Ajustar tela"
+check "Ajustar tela mostra tamanho, escala e régua" 'screen | grep -q "Sua tela: 46 colunas × 50 linhas" && screen | grep -q "escala 2" && screen | grep -q "RÉGUA" && screen | grep -q "|🏹|💣|"'
+tap "Ativar tela cheia"; sleep 1
+check "Botão ativa a tela cheia do Termux" 'screen | grep -q "tela cheia ativada" && grep -q "^fullscreen = true" "$WORK/t/.termux/termux.properties"'
+tap "Instalar a fonte"; sleep 1
+check "Botão instala a fonte do jogo" 'screen | grep -q "Fonte: SIM\|Fonte do jogo: SIM" && cmp -s "$SRC/fontes/DejaVuSansMono.ttf" "$WORK/t/.termux/font.ttf"'
+tap "Tirar a fonte"; sleep 1
+check "E tira a fonte de novo" '[ ! -e "$WORK/t/.termux/font.ttf" ]'
+
 echo "== Tamanhos de tela"
 start 32 26 "python3 td.py --jogar"
-check "Tela menor usa escala 1 e ainda cabe tudo" 'row 1 | grep -q "💗20" && screen | grep -q "Onda 1" && screen | grep -q "🚪"'
+check "Tela menor usa escala 1 e ainda cabe tudo" 'row 1 | grep -q "💗20" && screen | grep -q "▶ Onda 1\|▶ 1" && screen | grep -q "🚪" && screen | grep -q "🎯"'
 cell 5 9; cell 5 9
 check "Toque em escala 1 constrói" 'row 1 | grep -q "💰80"'
 start 28 15 "python3 td.py"

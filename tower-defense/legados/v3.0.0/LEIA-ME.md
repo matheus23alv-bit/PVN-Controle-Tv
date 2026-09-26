@@ -15,7 +15,7 @@ curl -fsSL https://raw.githubusercontent.com/matheus23alv-bit/PVN-Controle-Tv/HE
 
 Ou, com esta pasta já no celular: `bash instalar.sh`.
 
-O instalador confere o Python (instala se faltar) e cria os comandos `td` e `tower-defense`. No Termux, ele pergunta se pode trocar a barra de teclas extras por uma feita para o jogo, deixar o Termux em tela cheia e instalar a fonte do jogo. Tudo é feito com backup. No fim, ele oferece abrir o tutorial. Depois é só digitar `td`.
+O instalador confere o Python (instala se faltar), cria os comandos `td` e `tower-defense`, pergunta se pode trocar a barra de teclas extras do Termux por uma feita para o jogo (com backup) e oferece abrir o tutorial. Depois é só digitar `td`.
 
 Para atualizar, rode o instalador de novo. Para desinstalar: `bash ~/.local/share/tower-defense/instalar.sh --remover`. Sem instalar: `python td.py` nesta pasta.
 
@@ -23,29 +23,20 @@ Para atualizar, rode o instalador de novo. Para desinstalar: `bash ~/.local/shar
 
 O jogo usa a tela inteira em retrato. As casas crescem até o mapa preencher a altura: num celular comum (cerca de 46×50 caracteres) cada casa ocupa 4 colunas × 2 linhas, e em tablets chega a 6×3. Com o teclado aberto o jogo volta à escala 1 e continua jogável a partir de **30 colunas × 24 linhas**, que é o mínimo para os mapas 11×19. Abaixo disso aparece "Tela pequena demais": esconda o teclado ou diminua a fonte com o gesto de pinça.
 
-**Opções → Ajustar tela** mostra o tamanho da sua tela e a escala. Mostra também quanto diminuir a fonte para a próxima escala e uma régua para conferir se cada emoji e símbolo cabe nas suas 2 colunas. Por ali você ativa, com um toque:
-
-- **Tela cheia do Termux:** esconde a barra de status e a de navegação do Android e zera a margem lateral. Sobram mais linhas para o jogo.
-- **Fonte do jogo:** DejaVu Sans Mono em `~/.termux/font.ttf`. Com ela, ★, barras de vida, pontes e miniaturas saem sem falhas, e os emojis continuam coloridos. A sua fonte fica guardada.
-
-As mesmas opções existem no instalador: `--tela-cheia`, `--fonte`, `--so-tela` (só essas opções, sem reinstalar) e as versões `--sem-tela-cheia` e `--sem-fonte`. O `--remover` devolve a configuração e a fonte originais.
-
 Se os emojis aparecerem desalinhados no seu celular, vá em **Opções → Emojis: NÃO** (ou abra com `td --sem-emoji`) para jogar com letras coloridas.
 
 ## Como jogar
 
 Os monstros saem da 🚪 e seguem a trilha até a 🏰. Cada um que chega tira 💗, e cada abate dá 💰. Construa torres na grama; árvores e água não aceitam torre. As ondas não acabam: o objetivo é ir o mais longe possível, e o recorde fica salvo por mapa. Na primeira vez, abra o **Tutorial**: são 9 passos jogando de verdade.
 
-| Torre | Custo | Especialidade | Habilidade no nível 3 |
-|---|---|---|---|
-| 🏹 Arqueiro | 20 | Rápido, alvo único | Atira em 2 monstros |
-| 💣 Canhão | 50 | Explode e atinge os vizinhos do alvo | Explosão meia casa maior |
-| 🔮 Mago | 35 | Maior alcance, enxerga fantasmas e ignora casco | O raio atravessa e acerta quem vem atrás |
-| 🌀 Vórtice | 40 | Deixa lentos os monstros perto do alvo | Congela o alvo por 0,5 s (chefe e morcego não) |
+| Torre | Custo | Especialidade |
+|---|---|---|
+| 🏹 Arqueiro | 20 | Rápido, alvo único |
+| 💣 Canhão | 50 | Explode e atinge os vizinhos do alvo |
+| 🔮 Mago | 35 | Maior alcance, enxerga fantasmas e ignora casco |
+| 🌀 Vórtice | 40 | Deixa lentos os monstros perto do alvo |
 
-Toda torre pode ser melhorada até o nível 3, com mais dano e alcance a cada nível, e as estrelas ★ acima dela mostram o nível. O nível 2 custa 0,7× o preço da torre; o nível 3 traz a habilidade e custa 2,2×. Vender devolve metade do que foi gasto.
-
-Cada torre tem uma **mira** (🎯 ou tecla `t`): o mais adiantado (padrão), o de mais vida ou o mais perto. Com o cursor numa torre, o painel mostra o dano por segundo, quantos monstros ela derrotou e a mira.
+Toda torre pode ser melhorada até o nível 3, com mais dano e alcance, e as estrelas ★ acima dela mostram o nível. Vender devolve metade do que foi gasto.
 
 | Monstro | Vida | A partir da onda | Detalhe |
 |---|---|---|---|
@@ -71,7 +62,6 @@ A barra de torres e a barra de ações ficam embaixo, perto do polegar.
 | Barra de torres | Escolhe a torre (mostra custo e nome) |
 | ▶ Onda | Chama a próxima onda |
 | ⏩ | Velocidade 1× ou 2× |
-| 🎯 Mira | Troca a mira da torre do cursor |
 | ⏫ Melhorar / 💲 Vender | Agem na torre do cursor, com o preço no botão |
 | `||` no topo | Pausa |
 
@@ -81,16 +71,7 @@ A barra de torres e a barra de ações ficam embaixo, perto do polegar.
 | Enter / Espaço | Construir ou melhorar | `u` | Melhorar |
 | `x` | Vender | `n` | Próxima onda |
 | `f` | Velocidade 2× | `p` / `q` / Esc | Pausa |
-| `t` | Trocar a mira | `h` | Ajuda |
-
-### Na tela
-
-- **Tiros:** a flecha e a bala voam até o alvo. A explosão do Canhão pinta de laranja a área exata do dano, o Mago solta um raio e o Vórtice pulsa um anel azul.
-- **Monstros atingidos:** piscam em branco, azul quando estão lentos e azul-claro quando congelados. Os números de dano sobem em vermelho, e em cinza quando o casco reduz o dano.
-- **Monstros juntos:** aparecem lado a lado, e um número amarelo mostra quantos estão no mesmo lugar.
-- **Chefe:** a barra de vida do Dragão fica no topo enquanto ele está vivo, com faixas avisando a chegada e a derrota.
-- **Base atingida:** o mapa treme e o celular vibra, pelo Termux:API.
-- **Opções:** números de dano e vibração podem ser desligados.
+| `h` | Ajuda | | |
 
 ## Criar mapas
 
@@ -142,8 +123,7 @@ td --editor Rio                   # edita uma cópia do mapa Rio
 | Arquivo | Função |
 |---|---|
 | `td.py` | Jogo completo: lógica, telas, tutorial, editor e gerador de mapas |
-| `instalar.sh` | Instalador, atualizador e desinstalador; tela cheia e fonte do Termux |
-| `fontes/` | Fonte DejaVu Sans Mono (opcional no Termux) e a licença dela |
+| `instalar.sh` | Instalador, atualizador e desinstalador |
 | `VERSION` | Número da versão |
 | `CHANGELOG.md` | Histórico de alterações |
 

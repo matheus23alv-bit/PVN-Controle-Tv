@@ -13,8 +13,6 @@ import math
 import os
 import random
 import re
-import shutil
-import subprocess
 import sys
 import time
 import unicodedata
@@ -31,29 +29,15 @@ MAX_K = 3       # escala máxima: cada casa vira 2k colunas x k linhas
 
 TOWERS = {
     "1": {"name": "Arqueiro", "emoji": "🏹", "text": "A", "cost": 20, "range": 3.0, "dmg": 6, "rate": 0.5,
-          "info": "rápido, alvo único", "perk": "2 alvos por tiro",
-          "perk_info": "atira em 2 monstros de uma vez"},
+          "info": "rápido, alvo único"},
     "2": {"name": "Canhão", "emoji": "💣", "text": "C", "cost": 50, "range": 2.3, "dmg": 20, "rate": 1.4,
-          "splash": 1.1, "info": "explode e atinge vizinhos", "perk": "explosão maior",
-          "perk_info": "a explosão alcança meia casa a mais"},
+          "splash": 1.1, "info": "explode e atinge vizinhos"},
     "3": {"name": "Mago", "emoji": "🔮", "text": "M", "cost": 35, "range": 4.0, "dmg": 10, "rate": 0.9,
-          "info": "maior alcance, vê fantasmas, fura casco", "perk": "raio atravessa",
-          "perk_info": "o raio atravessa e acerta também quem vem logo atrás"},
+          "info": "maior alcance, vê fantasmas, fura casco"},
     "4": {"name": "Vórtice", "emoji": "🌀", "text": "V", "cost": 40, "range": 2.6, "dmg": 4, "rate": 0.8,
-          "slow": 0.5, "slow_time": 1.6, "slow_area": 1.2, "info": "deixa lento quem está perto",
-          "perk": "congela o alvo", "perk_info": "congela o alvo por 0,5 s (chefe e morcego não)"},
+          "slow": 0.5, "slow_time": 1.6, "slow_area": 1.2, "info": "deixa lento quem está perto"},
 }
 MAGE = "3"  # a torre que enxerga fantasmas e ignora casco
-SPLASH_BONUS = 0.5   # Canhão nível 3: raio da explosão
-PIERCE = 1.2         # Mago nível 3: distância do segundo monstro atingido
-FREEZE = 0.5         # Vórtice nível 3: segundos congelado
-TRAVEL = {"1": 0.10, "2": 0.15, "3": 0.06, "4": 0.0}  # segundos reais do tiro até o alvo (só visual)
-SHOT_TIME = {"1": 0.10, "2": 0.15, "3": 0.12, "4": 0.2}  # quanto o tiro fica na tela
-HIT_FLASH = 0.15   # segundos reais do monstro piscando ao levar o tiro
-TOWER_FLASH = 0.12
-TARGET_MODES = ["primeiro", "forte", "perto"]
-MODE_INFO = {"primeiro": "o mais adiantado", "forte": "o de mais vida", "perto": "o mais perto"}
-MODE_SHORT = {"primeiro": "1º", "forte": "forte", "perto": "perto"}
 
 # wave: primeira onda em que aparece; weight: peso no sorteio das ondas
 ENEMIES = {
@@ -79,7 +63,6 @@ START_LIFE = 20
 SPAWN_INTERVAL = 0.7
 HP_GROWTH = 1.16
 MAX_LEVEL = 3
-UPGRADE_PRICE = {1: 0.7, 2: 2.2}  # x custo da torre; o nível 3 traz a habilidade e custa mais
 STEP = 0.05          # passo máximo da simulação, para nada atravessar alcance entre quadros
 SPEED_JITTER = 0.06  # cada monstro anda até 6% mais rápido ou mais devagar: a fila se espalha
 GHOST_SHOW, GHOST_HIDE = 2.5, 1.2
@@ -87,7 +70,6 @@ REGEN_DELAY = 1.0
 
 BG = 234  # fundo da tela cheia
 LEVEL_BG = {1: 239, 2: 65, 3: 136}
-FIRE_BG = {1: 245, 2: 108, 3: 178}  # clarão da plataforma no tiro
 RANGE_BG = {28: 70, 137: 179, 25: 31, 94: 136}
 TEXT_COLORS = {"1": 51, "2": 226, "3": 201, "4": 39, "normal": 196, "rapido": 250, "tanque": 160,
                "lesma": 214, "tartaruga": 34, "morcego": 99, "fantasma": 255, "chefe": 201}
@@ -100,7 +82,7 @@ GLYPHS = {  # emoji / texto, sempre 2 colunas
     "fast": ("⏩", ">>"), "up": ("⏫", "^ "), "sell": ("💲", "$ "), "dice": ("🎲", "? "),
     "save": ("💾", "# "), "edit": ("📝", "E "), "new": ("➕", "+ "), "del": ("❌", "X "),
     "maps": ("🧭", "M "), "learn": ("🎓", "T "), "help": ("❓", "? "), "opts": ("🔧", "O "),
-    "exit": ("🚪", "< "), "aim": ("🎯", "@ "), "poof": ("💨", ". "), "screen": ("📱", "# "),
+    "exit": ("🚪", "< "),
 }
 
 
@@ -147,17 +129,13 @@ MIN_GRASS = 4
 
 
 class MapError(ValueError):
-    def __init__(self, msg, pos=None, short=None):
+    def __init__(self, msg, pos=None):
         super().__init__(msg)
-        self.msg, self.pos, self.short = msg, pos, short or msg
+        self.msg, self.pos = msg, pos
 
 
 def where(p):
     return f"col {p[0] + 1}, lin {p[1] + 1}"
-
-
-def tiny(p):
-    return f"c{p[0] + 1} l{p[1] + 1}"
 
 
 def slug(name):
@@ -278,24 +256,22 @@ class Mapa:
         while cur != base:
             nxt = [q for q in self.neighbors(cur) if q != prev]
             if not nxt:
-                if cur == start:
-                    raise MapError("A entrada não encosta na trilha", cur, "Entrada solta")
-                raise MapError(f"Trilha sem saída em {where(cur)}", cur, f"Sem saída: {tiny(cur)}")
+                raise MapError("A entrada não encosta na trilha" if cur == start
+                               else f"Trilha sem saída em {where(cur)}", cur)
             if len(nxt) > 1:
-                raise MapError(f"Trilha se divide ou encosta em {where(cur)}", cur, f"Divide/encosta: {tiny(cur)}")
+                raise MapError(f"Trilha se divide ou encosta em {where(cur)}", cur)
             prev, cur = cur, nxt[0]
             path.append(cur)
             if len(path) > self.w * self.h:
                 raise MapError("A trilha anda em círculo", cur)
         if len(self.neighbors(base)) > 1:
-            raise MapError("A trilha encosta na base por dois lados", base, "Base com 2 lados")
+            raise MapError("A trilha encosta na base por dois lados", base)
         on_path = set(path)
         loose = [p for p in self.find("#") if p not in on_path]
         if loose:
-            raise MapError(f"Trilha solta em {where(loose[0])}", loose[0], f"Solta: {tiny(loose[0])}")
+            raise MapError(f"Trilha solta em {where(loose[0])}", loose[0])
         if len(path) < MIN_PATH:
-            raise MapError(f"Trilha curta: {len(path)} casas (mínimo {MIN_PATH})", None,
-                           f"Curta: {len(path)}/{MIN_PATH}")
+            raise MapError(f"Trilha curta: {len(path)} casas (mínimo {MIN_PATH})")
         if sum(r.count(".") for r in self.grid) < MIN_GRASS:
             raise MapError("Falta grama para construir torres")
         return path
@@ -533,9 +509,6 @@ class Tower:
         self.spent = TOWERS[key]["cost"]
         self.last = -999.0
         self.span = None
-        self.mode = TARGET_MODES[0]
-        self.kills = 0
-        self.dealt = 0.0
 
     @property
     def cfg(self):
@@ -554,27 +527,8 @@ class Tower:
         return self.cfg["rate"]
 
     @property
-    def perk(self):
-        """A habilidade de nível 3 está ativa."""
-        return self.level >= MAX_LEVEL
-
-    @property
-    def targets(self):
-        return 2 if self.key == "1" and self.perk else 1
-
-    @property
-    def splash(self):
-        base = self.cfg.get("splash", 0)  # só o Canhão explode
-        return base + SPLASH_BONUS if base and self.perk else base
-
-    @property
-    def dps(self):
-        """Dano por segundo no alvo principal (sem contar área nem casco)."""
-        return self.damage * self.targets / self.rate
-
-    @property
     def upgrade_cost(self):
-        return None if self.level >= MAX_LEVEL else int(self.cfg["cost"] * UPGRADE_PRICE[self.level])
+        return None if self.level >= MAX_LEVEL else int(self.cfg["cost"] * 0.7 * self.level)
 
     @property
     def refund(self):
@@ -602,24 +556,11 @@ class Enemy:
         self.leaked = False
         self.slow_until = -1.0
         self.slow_factor = 1.0
-        self.freeze_until = -1.0
+        self.hit_until = -1.0
         self.last_hit = -999.0
-        self.flash_at = -999.0   # quando o tiro chega (efeito visual)
-        self.dmg_fx = None       # número de dano que está somando os tiros
-        self.immune_until = -1.0
 
     def hidden(self, now):
         return self.ghost and (now + self.phase) % (GHOST_SHOW + GHOST_HIDE) >= GHOST_SHOW
-
-
-class Fx:
-    """Efeito só visual. t0 e t1 no relógio do jogo."""
-    __slots__ = ("kind", "x", "y", "t0", "t1", "text", "x2", "y2", "tower", "r", "value", "muted")
-
-    def __init__(self, kind, x, y, t0, t1, text="", x2=0.0, y2=0.0, tower=None, r=0.0):
-        self.kind, self.x, self.y, self.t0, self.t1, self.text = kind, x, y, t0, t1, text
-        self.x2, self.y2, self.tower, self.r = x2, y2, tower, r
-        self.value, self.muted = 0.0, False
 
 
 def tower_span(t, path):
@@ -627,15 +568,6 @@ def tower_span(t, path):
     reach = t.range + 1
     idx = [i for i, (x, y) in enumerate(path) if math.hypot(x - t.x, y - t.y) <= reach]
     return (idx[0], idx[-1]) if idx else (0, -1)
-
-
-def target_key(mode, e, j, ex, ey, t):
-    """Ordem de preferência da mira (menor primeiro). j desempata igual à varredura rápida."""
-    if mode == "forte":
-        return (-e.hp, -e.progress, -j)
-    if mode == "perto":
-        return ((ex - t.x) ** 2 + (ey - t.y) ** 2, -e.progress, -j)
-    return (-e.progress, -j)
 
 
 def make_wave(n, rng):
@@ -647,7 +579,7 @@ def make_wave(n, rng):
 
 
 class Game:
-    def __init__(self, mapa=None, seed=None, tutorial=False, visual=True):
+    def __init__(self, mapa=None, seed=None, tutorial=False):
         self.mapa = mapa or builtin_maps()[0]
         path, err = self.mapa.check()
         if err:
@@ -657,7 +589,6 @@ class Game:
         self.w, self.h = self.mapa.w, self.mapa.h
         self.rng = random.Random(seed)
         self.tutorial = tutorial
-        self.visual = visual  # a simulação de balanceamento desliga os efeitos
         self.gold, self.life, self.wave, self.kills = START_GOLD, START_LIFE, 0, 0
         self.towers = {}
         self.enemies, self.queue = [], []
@@ -667,23 +598,12 @@ class Game:
         self.over = False
         self.time = 0.0
         self.speed = 1
-        self.effects = []
-        self.events = []  # "vazou", "chefe", "chefe_morto": a tela vibra o celular
+        self.effects = []  # (tipo, x, y, início, fim, texto)
         self.leak_until = -1.0
         self.spawn_until = -1.0
-        self.shake_until = -1.0
 
     def plan_wave(self, n):
         return ["normal"] * 4 if self.tutorial else make_wave(n, self.rng)
-
-    def fx(self, kind, x, y, dur, text="", delay=0.0, **kw):
-        """Cria um efeito; dur e delay em segundos reais (em 2x o relógio do jogo corre 2x)."""
-        if not self.visual:
-            return None
-        t0 = self.time + delay * self.speed
-        f = Fx(kind, x, y, t0, t0 + dur * self.speed, text, **kw)
-        self.effects.append(f)
-        return f
 
     # ------------------------------------------------------ ações
     def can_build(self, x, y):
@@ -718,8 +638,6 @@ class Game:
         t.spent += cost
         t.level += 1
         t.span = None
-        if t.perk:
-            return True, f"{t.cfg['name']} nível 3: {t.cfg['perk']}"
         return True, f"{t.cfg['name']} agora é nível {t.level}"
 
     def sell(self, x, y):
@@ -728,13 +646,6 @@ class Game:
             return False, "Nenhuma torre aqui"
         self.gold += t.refund
         return True, f"{t.cfg['name']} vendido (+{t.refund})"
-
-    def cycle_mode(self, x, y):
-        t = self.towers.get((x, y))
-        if t is None:
-            return False, "Nenhuma torre aqui"
-        t.mode = TARGET_MODES[(TARGET_MODES.index(t.mode) + 1) % len(TARGET_MODES)]
-        return True, f"{t.cfg['name']} mira: {MODE_INFO[t.mode]}"
 
     def next_wave(self):
         if self.over:
@@ -746,7 +657,6 @@ class Game:
         self.next_queue = self.plan_wave(self.wave + 1)
         self.wave_active = True
         self.spawn_timer = 0.0
-        self.fx("banner", 0, 0, 1.0, f"ONDA {self.wave}")
         return True, f"Onda {self.wave}!"
 
     def enemy_pos(self, e):
@@ -773,21 +683,14 @@ class Game:
             self.spawn_timer -= dt
             if self.spawn_timer <= 0 and self.queue:
                 scale = 0.6 if self.tutorial else 1.0
-                kind = self.queue.pop(0)
-                self.enemies.append(Enemy(kind, self.wave, scale, self.rng))
+                self.enemies.append(Enemy(self.queue.pop(0), self.wave, scale, self.rng))
                 self.spawn_timer = SPAWN_INTERVAL
                 self.spawn_until = now + 0.25
-                if kind == "chefe" and self.visual:
-                    self.fx("banner", 0, 0, 1.4, "chefe")
-                    self.events.append("chefe")
         end = len(self.path) - 1
         for e in self.enemies:
             if not e.alive:
                 continue
-            if now < e.freeze_until:
-                f = 0.0
-            else:
-                f = e.slow_factor if now < e.slow_until else 1.0
+            f = e.slow_factor if now < e.slow_until else 1.0
             e.progress += e.speed * f * dt
             if e.regen and e.hp < e.max_hp and now - e.last_hit >= REGEN_DELAY:
                 e.hp = min(e.max_hp, e.hp + e.regen * e.max_hp * dt)
@@ -797,14 +700,11 @@ class Game:
                 self.life -= e.dmg
                 self.leak_until = now + 0.5
                 bx, by = self.path[-1]
-                if self.visual:
-                    self.fx("leak", bx, by, 0.8, f"-{e.dmg}")
-                    self.shake_until = now + 0.25 * self.speed
-                    self.events.append("vazou")
+                self.effects.append(("leak", bx, by, now, now + 0.8, f"-{e.dmg}"))
         self._fire()
         self.enemies = [e for e in self.enemies if e.alive]
         if self.effects:
-            self.effects = [f for f in self.effects if f.t1 > now]
+            self.effects = [fx for fx in self.effects if fx[4] > now]
         if self.wave_active and not self.queue and not self.enemies:
             self.wave_active = False
             self.gold += 3 + self.wave
@@ -829,131 +729,64 @@ class Game:
             sees = t.key == MAGE
             j = bisect.bisect_left(progress, hi + 1) - 1
             stop = bisect.bisect_left(progress, lo)
-            n = t.targets
-            if t.mode == "primeiro" and n == 1:  # caso comum: o mais adiantado, para no primeiro
-                while j >= stop:
-                    e = alive[j]
-                    if e.alive and (sees or not hidden[j]):
-                        ex, ey = positions[j]
-                        if (ex - t.x) ** 2 + (ey - t.y) ** 2 <= r2:
-                            self._hit(t, e, ex, ey, alive, positions)
-                            t.last = now
-                            break
-                    j -= 1
-                continue
-            cands = []
             while j >= stop:
                 e = alive[j]
                 if e.alive and (sees or not hidden[j]):
                     ex, ey = positions[j]
                     if (ex - t.x) ** 2 + (ey - t.y) ** 2 <= r2:
-                        cands.append((target_key(t.mode, e, j, ex, ey, t), j))
+                        self._hit(t, e, ex, ey, alive, positions)
+                        t.last = now
+                        break
                 j -= 1
-            if cands:
-                cands.sort()
-                for _, j in cands[:n]:
-                    ex, ey = positions[j]
-                    self._hit(t, alive[j], ex, ey, alive, positions)
-                t.last = now
 
     def _hit(self, t, target, tx, ty, alive, positions):
         cfg = t.cfg
         dmg = t.damage
         now = self.time
-        travel = TRAVEL[t.key]
         hits = [(target, dmg)]
-        if t.splash:
-            s2 = t.splash ** 2
+        if "splash" in cfg:
+            s2 = cfg["splash"] ** 2
             for e, (ex, ey) in zip(alive, positions):
                 if e is not target and e.alive and (ex - tx) ** 2 + (ey - ty) ** 2 <= s2:
                     hits.append((e, dmg * 0.5))
-        if t.key == MAGE and t.perk:  # o raio atravessa e acerta quem vem logo atrás
-            behind, best = None, PIERCE ** 2
-            for e, (ex, ey) in zip(alive, positions):
-                if e is not target and e.alive and e.progress <= target.progress:
-                    d2 = (ex - tx) ** 2 + (ey - ty) ** 2
-                    if d2 <= best:
-                        behind, best = e, d2
-            if behind is not None:
-                hits.append((behind, dmg))
-                if self.visual:
-                    bx, by = self.enemy_pos(behind)
-                    self.fx("beam", tx, ty, 0.12, x2=bx, y2=by, tower=t.key)
         if "slow" in cfg:
             a2 = cfg["slow_area"] ** 2
             for e, (ex, ey) in zip(alive, positions):
-                if e.alive and (ex - tx) ** 2 + (ey - ty) ** 2 <= a2:
-                    if e.noslow:
-                        if self.visual and now >= e.immune_until:
-                            e.immune_until = now + 1.0 * self.speed
-                            self.fx("immune", ex, ey, 0.6, "imune")
-                        continue
+                if e.alive and not e.noslow and (ex - tx) ** 2 + (ey - ty) ** 2 <= a2:
                     e.slow_until = now + cfg["slow_time"]
                     e.slow_factor = max(cfg["slow"], 0.8) if e.kind == "chefe" else cfg["slow"]
-            if t.perk and not target.noslow and target.kind != "chefe":
-                target.freeze_until = now + FREEZE
-        if self.visual:
-            self.fx("shot", t.x, t.y, max(travel, 0.12), x2=tx, y2=ty, tower=t.key)
-            if t.splash:
-                self.fx("boom", tx, ty, 0.2, delay=travel, r=t.splash)
         magic = t.key == MAGE
         for e, d in hits:
-            muted = False
             if e.armor and not magic:
                 d = max(d * 0.25, d - e.armor)
-                muted = True
-            dealt = min(d, max(e.hp, 0.0))
             e.hp -= d
-            t.dealt += dealt
+            e.hit_until = now + 0.08
             e.last_hit = now
-            if self.visual:
-                e.flash_at = now + travel * self.speed
-                self._damage_number(e, dealt, muted, travel)
             if e.hp <= 0 and e.alive:
                 e.alive = False
                 self.gold += e.gold
                 self.kills += 1
-                t.kills += 1
-                if self.visual:
-                    x, y = self.enemy_pos(e)
-                    self.fx("corpse", x, y, travel, e.kind)
-                    self.fx("kill", x, y, 0.35, delay=travel)
-                    self.fx("gold", x, y, 0.7, f"+{e.gold}", delay=travel + 0.15)
-                    if e.kind == "chefe":
-                        self.fx("banner", 0, 0, 1.4, f"chefe_morto:{e.gold}")
-                        self.events.append("chefe_morto")
+                x, y = self.enemy_pos(e)
+                self.effects.append(("kill", x, y, now, now + 0.3, ""))
+                self.effects.append(("gold", x, y, now + 0.15, now + 0.9, f"+{e.gold}"))
             elif e.summon and e.alive and not e.summoned and e.hp <= e.max_hp / 2:
                 e.summoned = True
                 self._summon(e)
 
-    def _damage_number(self, e, dealt, muted, travel):
-        """Soma os tiros num número só por 0,3 s, para a tela não virar uma chuva de números."""
-        f = e.dmg_fx
-        if f is not None and self.time - f.t0 < 0.3 * self.speed:
-            f.value += dealt
-        else:
-            x, y = self.enemy_pos(e)
-            f = e.dmg_fx = self.fx("dmg", x, y, 0.6, delay=travel)
-            f.value = dealt
-        f.muted = f.muted or muted
-        f.text = f"-{max(1, int(round(f.value)))}"
-
     def _summon(self, boss):
+        now = self.time
         for i in range(boss.summon):
             m = Enemy("rapido", self.wave, 1.0, self.rng)
             m.progress = max(0.0, boss.progress - 0.4 * (i + 1))
             self.enemies.append(m)
         x, y = self.enemy_pos(boss)
-        self.fx("summon", x, y, 0.5)
+        self.effects.append(("summon", x, y, now, now + 0.5, ""))
 
 
 # ================================================================ editor (sem tela)
 
 class Editor:
     TOOLS = ["S", "#", "B", ".", "T", "~"]
-    HINTS_SHORT = {"S": "Entrada: só uma", "#": "Toque nos cantos", "B": "Base: só uma",
-                   ".": "Grama: apaga", "T": "Árvore: sem torre", "~": "Água: sem torre"}
-    SHORT = {"S": "Entr.", "#": "Tril.", "B": "Base", ".": "Grama", "T": "Árv.", "~": "Água"}
     HINTS = {
         "S": "Entrada: de onde os monstros saem",
         "#": "Trilha: toque nos cantos; a reta se forma",
@@ -1085,8 +918,8 @@ def tutorial_steps(g):
         {"text": "Toque 2 vezes no Mago (ou em {up}Melhorar). Nível maior = mais dano e alcance.",
          "marks": [mage], "wait": lambda a: a.game.towers.get(mage) and a.game.towers[mage].level >= 2,
          "setup": lambda a: setattr(a.game, "gold", max(a.game.gold, 24))},
-        {"text": "{sell}Vender devolve metade. {aim} muda a mira da torre. {fast} acelera. "
-                 "|| no topo pausa. {t4} Vórtice deixa os monstros lentos.",
+        {"text": "{sell}Vender devolve metade. {fast} acelera. || no topo pausa. "
+                 "{t4} Vórtice deixa os monstros lentos.",
          "marks": [], "wait": None},
         {"text": "Pronto {party} As ondas crescem, surgem monstros novos e a cada 5 vem o {boss}. "
                  "Crie os seus mapas em Mapas!",
@@ -1131,49 +964,9 @@ def wrap(text, width):
     return [clip(ln, width) for ln in lines] or [""]
 
 
-def fit(options, width):
-    """A primeira versão do texto que cabe na largura; senão corta a última (a mais curta)."""
-    for t in options:
-        if text_width(t) <= width:
-            return t
-    return clip(options[-1], width)
-
-
-def short_num(n):
-    if n < 1000:
-        return str(n)
-    if n < 10000:
-        s = f"{n / 1000:.1f}".replace(".", ",")
-        return (s[:-2] if s.endswith(",0") else s) + "k"
-    if n < 1_000_000:
-        return f"{n // 1000}k"
-    return f"{n // 1_000_000}M"
-
-
-def is_termux():
-    return bool(os.environ.get("TERMUX_VERSION")) or os.path.isdir("/data/data/com.termux/files")
-
-
-def termux_screen_state():
-    """(tela cheia ligada?, fonte do jogo instalada?) lendo ~/.termux."""
-    base = os.path.expanduser("~/.termux")
-    full = False
-    try:
-        with open(os.path.join(base, "termux.properties"), encoding="utf-8") as f:
-            for line in f:
-                s = line.strip().replace(" ", "").lower()
-                if s.startswith("fullscreen="):
-                    full = s == "fullscreen=true"
-    except OSError:
-        pass
-    font = any(os.path.exists(os.path.join(base, n)) for n in ("font.ttf.antes-do-td", ".td-sem-fonte-original"))
-    return full, font
-
-
 BASIC = {  # equivalente em 8 cores para terminais sem 256 cores
     16: 0, 22: 2, 25: 4, 28: 2, 31: 6, 34: 2, 39: 6, 45: 6, 46: 2, 51: 6, 52: 1, 64: 2, 65: 2, 70: 2,
     76: 2, 94: 3, 99: 5, 101: 7, 114: 2, 124: 1, 136: 3, 137: 3, 143: 3, 160: 1, 179: 3, 180: 3,
-    32: 4, 60: 5, 88: 1, 108: 2, 178: 3, 195: 6, 245: 7, 213: 5,
     196: 1, 201: 5, 208: 1, 214: 3, 220: 3, 226: 3, 229: 7, 231: 7, 234: 0, 235: 0, 236: 0, 237: 0,
     238: 0, 239: 0, 240: 0, 244: 7, 250: 7, 255: 7, -1: -1,
 }
@@ -1235,10 +1028,6 @@ class Layout:
         k = self.k
         return (self.top + int(math.floor(fy * k + 0.5)) + k // 2,
                 self.left + int(math.floor(fx * 2 * k + 0.5)) + k - 1)
-
-    def shifted(self, dx):
-        return Layout(self.k, self.top, self.left + dx, self.mw, self.mh, self.panel_y, self.panel,
-                      self.bars_y, self.bar, self.w, self.h)
 
     def tile_at(self, row, col):
         if row < self.top or col < self.left:
@@ -1331,12 +1120,6 @@ class App:
         self.ed = None
         self.utf8 = b""
         self._tiles_map, self._tiles_key, self._tiles = None, None, None
-        self.numbers = self.cfg.get("numeros", True)
-        self.vibe = self.cfg.get("vibrar", True)
-        self.vib_cmd = shutil.which("termux-vibrate")
-        self._vib_proc = None
-        self.press = None  # botão tocado: pisca por um instante
-        self.message_short = ""
         self.mapa = find_map(self.cfg.get("mapa")) or builtin_maps()[0]
         self._init_curses()
         if start == "tutorial":
@@ -1377,25 +1160,8 @@ class App:
     def enemy_glyph(self, kind):
         return ENEMIES[kind]["emoji"] if self.emoji else ENEMIES[kind]["text"] + " "
 
-    def say(self, text, secs=2.0, short=None):
+    def say(self, text, secs=2.0):
         self.message, self.message_until = text, time.monotonic() + secs
-        self.message_short = short or text
-
-    def msg_fit(self, width):
-        return fit([" " + self.message, " " + self.message_short], width)
-
-    def vibrate(self, ms):
-        """Vibra pelo Termux:API sem travar o jogo; pula se a vibração anterior não terminou."""
-        if not self.vibe or not self.vib_cmd:
-            return
-        p = self._vib_proc
-        if p is not None and p.poll() is None:
-            return
-        try:
-            self._vib_proc = subprocess.Popen([self.vib_cmd, "-d", str(ms)], stdin=subprocess.DEVNULL,
-                                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        except OSError:
-            self.vib_cmd = None
 
     def has_message(self):
         return bool(self.message) and time.monotonic() < self.message_until
@@ -1504,10 +1270,10 @@ class App:
         g = self.game
         x, y = self.cursor
         if (x, y) in g.towers:
-            self.do_upgrade()
+            ok, msg = g.upgrade(x, y)
         else:
             ok, msg = g.build(x, y, self.selected)
-            self.say(msg, short=msg.replace("Não dá para construir", "Sem torre").replace("Falta ouro: ", "Custa "))
+        self.say(msg)
 
     def tap_cell(self, x, y):
         if [x, y] == self.cursor and self.cursor_moved:
@@ -1537,21 +1303,10 @@ class App:
         self.say(f"Velocidade {g.speed}x", 1.2)
 
     def do_upgrade(self):
-        t = self.game.towers.get(tuple(self.cursor))
-        if t is None:
-            self.say("Toque numa torre primeiro")
-            return
-        ok, msg = self.game.upgrade(*self.cursor)
-        short = (f"Nível 3: {t.cfg['perk']}" if t.perk else f"Nível {t.level}") if ok else msg.replace("Falta ouro: ", "")
-        self.say(msg, 2.5 if ok and t.perk else 2.0, short)
-
-    def do_mode(self):
         if tuple(self.cursor) not in self.game.towers:
             self.say("Toque numa torre primeiro")
             return
-        ok, msg = self.game.cycle_mode(*self.cursor)
-        t = self.game.towers[tuple(self.cursor)]
-        self.say(msg, 1.5, f"Mira: {MODE_SHORT[t.mode]}")
+        self.say(self.game.upgrade(*self.cursor)[1])
 
     def do_sell(self):
         if tuple(self.cursor) not in self.game.towers:
@@ -1790,13 +1545,9 @@ class App:
 
     def options(self):
         n = len(self.cfg.get("recordes", {}))
-        vib = ("SIM" if self.vibe else "NÃO") + ("" if self.vib_cmd else " (sem Termux:API)")
         return [
             ("emoji", f"Emojis: {'SIM' if self.emoji else 'NÃO (letras)'}"),
             ("touch", f"Toque na tela: {'SIM' if self.touch else 'NÃO'}"),
-            ("numbers", f"Números de dano: {'SIM' if self.numbers else 'NÃO'}"),
-            ("vibe", f"Vibrar: {vib}"),
-            ("screen", "Ajustar tela ›"),
             ("reset", "Zerar recordes" + (f" ({n})" if n else "")),
             ("back", "Voltar"),
         ]
@@ -1810,7 +1561,6 @@ class App:
             self.screen = "menu"
 
     def option_choose(self, i):
-        self.opt_i = i
         action = self.options()[i][0]
         if action == "emoji":
             self.emoji = not self.emoji
@@ -1819,16 +1569,6 @@ class App:
             self.touch = not self.touch
             self.cfg["toque"] = self.touch
             self.apply_touch()
-        elif action == "numbers":
-            self.numbers = not self.numbers
-            self.cfg["numeros"] = self.numbers
-        elif action == "vibe":
-            self.vibe = not self.vibe
-            self.cfg["vibrar"] = self.vibe
-            self.vibrate(80)  # mostra como é
-        elif action == "screen":
-            self.screen = "tela"
-            return
         elif action == "reset":
             self.cfg.pop("recordes", None)
             self.cfg.pop("recorde", None)
@@ -1837,99 +1577,6 @@ class App:
             self.screen = "menu"
             return
         save_config(self.cfg)
-
-    # ------------------------------------------------------ Ajustar tela
-    def key_tela(self, k, ch):
-        if ch in ("e", "E"):
-            self.option_choose(0)
-            self.screen = "tela"
-        elif ch in ("q", "Q") or k in (27, curses.KEY_BACKSPACE, 127, 10, 13, curses.KEY_ENTER):
-            self.screen = "options"
-
-    def run_setup(self, flag):
-        """Roda o instalador só na parte de tela do Termux (tela cheia ou fonte) e mostra o resultado."""
-        inst = os.path.join(APP_DIR, "instalar.sh")
-        if not os.path.isfile(inst):
-            self.say("instalar.sh não está na pasta do jogo", 3)
-            return
-        try:
-            # sessão nova: sem terminal de controle, o instalador nunca fica esperando resposta
-            r = subprocess.run(["bash", inst, "--so-tela", flag], stdin=subprocess.DEVNULL,
-                               capture_output=True, text=True, timeout=120, start_new_session=True)
-            out = [ln.strip() for ln in (r.stdout + r.stderr).splitlines() if ln.strip()]
-            ok, msg = r.returncode == 0, (out[-1] if out else "")
-        except (OSError, subprocess.TimeoutExpired) as e:
-            ok, msg = False, str(e)
-        msg = msg.lstrip("✔✘! ")
-        mark = "✔ " if ok else "✘ "
-        self.say(mark + msg, 4, mark + msg.split(";")[0])
-
-    def draw_tela(self, h, w):
-        P = self.pal
-        back = lambda: setattr(self, "screen", "options")
-        self.top_bar(w, f" {self.g('screen')} AJUSTAR TELA", back, "◀ Voltar", False)
-        m = self.mapa
-        L = compute_layout(h, w, m.w, m.h)
-        k = L.k if L else 0
-        text = [f"Sua tela: {w} colunas × {h} linhas.",
-                f"Mapa {m.name} ({m.w}×{m.h}): " + (f"escala {k}, cada casa com {2 * k}×{k}." if k else "não cabe.")]
-        if k < MAX_K:
-            nw, nh = 2 * m.w * (k + 1), m.h * (k + 1) + 5
-            text.append(f"Escala {k + 1} precisa de {nw}×{nh}: diminua a fonte com a pinça"
-                        + (" e esconda o teclado." if h < nh else "."))
-        else:
-            text.append("Escala máxima: nada a ajustar.")
-        y = 2
-        for para in text:
-            for ln in wrap(para, w - 2):
-                put(self.scr, y, 1, ln, P(255, BG))
-                y += 1
-        # régua: cada figura deve caber entre duas barras
-        y += 1
-        put(self.scr, y, 1, "RÉGUA", P(220, BG, True))
-        put(self.scr, y + 1, 1, clip("Cada figura deve ficar entre as barras:", w - 2), P(244, BG))
-        y += 2
-        glyphs = [TOWERS[t]["emoji"] for t in TOWERS] + [ENEMIES[e]["emoji"] for e in ENEMIES] + \
-                 [GLYPHS[n][0] for n in ("spawn", "base", "tree", "kill", "poof", "gold", "life", "wave",
-                                         "kills", "fast", "up", "sell", "aim")]
-        if not self.emoji:
-            glyphs = [TOWERS[t]["text"] + " " for t in TOWERS] + [ENEMIES[e]["text"] + " " for e in ENEMIES]
-        per = max(1, (w - 3) // 3)
-        for i in range(0, len(glyphs), per):
-            row = glyphs[i:i + per]
-            put(self.scr, y, 1, "|" + "|".join(row) + "|", P(255, 236))
-            put(self.scr, y + 1, 1, "|" + "|".join("--" for _ in row) + "|", P(244, BG))
-            y += 2
-        syms = ["★", "▶", "░", "═", "│", "·", "×", "~", "•", "●"]
-        put(self.scr, y, 1, "|" + "|".join(syms) + "|", P(255, 236))
-        put(self.scr, y + 1, 1, "|" + "|".join("-" for _ in syms) + "|", P(244, BG))
-        put(self.scr, y + 2, 1, clip("Barras: ▏▎▍▌▋▊▉█  ▀▄  sem vãos entre linhas", w - 2), P(46, BG))
-        y += 4
-        for ln in wrap("Se algo passar da barra, use Emojis: NÃO. Se ★ e as barras sairem finas "
-                       "ou com vãos, instale a fonte do jogo.", w - 2):
-            put(self.scr, y, 1, ln, P(244, BG))
-            y += 1
-        # botões embaixo
-        bh = 2 if h - y >= 7 else 1
-        by = h - 2 * bh
-        btn = P(255, 237, True)
-        if is_termux():
-            full, font = termux_screen_state()
-            yes = {True: "SIM", False: "NÃO"}
-            put(self.scr, by - 2, 1, fit([f"Tela cheia do Termux: {yes[full]} · Fonte do jogo: {yes[font]}",
-                                          f"Tela cheia: {yes[full]} · Fonte: {yes[font]}"], w - 2), P(250, BG))
-            self.row_buttons(by, bh, w, [
-                ([["Tirar tela cheia", "Tirar t. cheia"] if full else ["Ativar tela cheia", "Tela cheia"]],
-                 btn, lambda: self.run_setup("--sem-tela-cheia" if full else "--tela-cheia")),
-                ([["Tirar a fonte", "Tirar fonte"] if font else ["Instalar a fonte", "Pôr fonte"]],
-                 btn, lambda: self.run_setup("--sem-fonte" if font else "--fonte"))])
-        else:
-            put(self.scr, by - 2, 1, clip("Fora do Termux: tela cheia e fonte não se aplicam.", w - 2), P(244, BG))
-        self.row_buttons(by + bh, bh, w, [
-            ([f"Emojis: {'SIM' if self.emoji else 'NÃO'}"], btn, lambda: (self.option_choose(0), setattr(self, "screen", "tela"))),
-            (["◀ Voltar"], btn, back)])
-        if self.has_message():
-            self.bar_row(by - 1, self.msg_fit(w), P(229, 238, True), w)
 
     def key_help(self, k, ch):
         if k == curses.KEY_DOWN or ch in ("s", "j"):
@@ -1973,8 +1620,6 @@ class App:
             self.call_wave()
         elif ch in ("f", "F"):
             self.toggle_speed()
-        elif ch in ("t", "T"):
-            self.do_mode()
 
     def key_maps(self, k, ch):
         if self.maps:
@@ -2070,8 +1715,6 @@ class App:
             return
         for (y0, x0, y1, x1, action) in reversed(self.hits):
             if y0 <= my <= y1 and x0 <= mx <= x1:
-                if y1 - y0 <= 3:  # botões piscam; áreas grandes (ajuda inteira) não
-                    self.press = (y0, x0, y1, x1, time.monotonic() + 0.15)
                 action()
                 return
         if self.map_hit:
@@ -2082,7 +1725,7 @@ class App:
 
     # ------------------------------------------------------ desenho: peças
     def busy(self):
-        if self.has_message() or (self.press and time.monotonic() < self.press[4]):
+        if self.has_message():
             return True
         g = self.game
         if self.screen == "game" and g and not self.overlay:
@@ -2107,13 +1750,6 @@ class App:
                 self.draw_name(h, w)
             else:
                 self.draw_overlay(h, w)
-        if self.press and time.monotonic() < self.press[4]:
-            y0, x0, y1, x1, _ = self.press
-            for r in range(y0, y1 + 1):
-                try:
-                    scr.chgat(r, x0, min(x1, w - 1) - x0 + 1, curses.A_REVERSE | curses.A_BOLD)
-                except curses.error:
-                    pass
         scr.refresh()
 
     def draw_small(self, h, w, need_w, need_h):
@@ -2136,9 +1772,7 @@ class App:
         n = min(len(lines), height)
         y0 = y + (height - n) // 2
         for i in range(n):
-            line = lines[i]
-            # versões alternativas pedem 1 coluna de folga: rótulos vizinhos não grudam
-            t = fit(line, width - 1 if width > 4 else width) if isinstance(line, (list, tuple)) else clip(line, width)
+            t = clip(lines[i], width)
             put(self.scr, y0 + i, x + max(0, (width - text_width(t)) // 2), t, attr)
         if action:
             self.hits.append((y, x, y + height - 1, x + width - 1, action))
@@ -2197,7 +1831,7 @@ class App:
         return tiles
 
     def draw_tiles(self, L, mapa, towers=None, in_range=(), cursor=None, marks=(), alert=None,
-                   anchor=None, base_flash=False, spawn_flash=False, clock=None):
+                   anchor=None, base_flash=False, spawn_flash=False):
         P, k = self.pal, L.k
         add = self.scr.addstr
         blink = int(time.monotonic() * 3) % 2 == 0
@@ -2205,7 +1839,6 @@ class App:
         tiles = self.static_tiles(mapa, k)
         ar = k // 2
         blank = {k: [" " * 2 * k] * k}
-        occ = {}  # (linha, coluna) -> "casa" ou "base": onde já há emoji que não pode ser cortado ao meio
         for (x, y), (bg, glyph, fg, tex, texfg) in tiles.items():
             pos = (x, y)
             if pos in in_range:
@@ -2214,8 +1847,6 @@ class App:
             t = towers.get(pos)
             if t is not None:
                 glyph, fg, bg = self.tower_glyph(t.key), TEXT_COLORS[t.key], LEVEL_BG[t.level]
-                if clock and clock[0] - t.last < TOWER_FLASH * clock[1]:
-                    bg = FIRE_BG[t.level]
                 if k >= 2 and t.level > 1:
                     top_text = "★" * (t.level - 1)
             c = mapa.grid[y][x]
@@ -2247,17 +1878,11 @@ class App:
                     add(row0 + ar, col0 + k - 1, glyph, gattr)
                 except curses.error:
                     pass
-                owner = ("porta", col0 + k - 1) if c in "SB" and t is None else ("casa", col0 + k - 1)
-                occ[(row0 + ar, col0 + k - 1)] = occ[(row0 + ar, col0 + k)] = owner
             if top_text:
-                tx = col0 + (2 * k - len(top_text)) // 2
                 try:
-                    add(row0 + ar - 1, tx, top_text, P(226, bg, True))
+                    add(row0 + ar - 1, col0 + (2 * k - len(top_text)) // 2, top_text, P(226, bg, True))
                 except curses.error:
                     pass
-                for i in range(len(top_text)):
-                    occ[(row0 + ar - 1, tx + i)] = ("texto", tx)
-        return occ
 
     def tile_bg(self, mapa, x, y, in_range):
         xi, yi = int(x + 0.5), int(y + 0.5)
@@ -2267,197 +1892,59 @@ class App:
         bg = 137 if c in WALK else (25 if c == "~" else 28)
         return RANGE_BG.get(bg, bg) if (xi, yi) in in_range else bg
 
-    def draw_enemy(self, L, g, e, fx, fy, row, col, in_range):
-        P, k, now = self.pal, L.k, g.time
-        ratio = max(0.0, e.hp / e.max_hp)
-        hidden = e.hidden(now)
-        bg = self.tile_bg(g.mapa, fx, fy, in_range)
-        if e.flash_at <= now < e.flash_at + HIT_FLASH * g.speed:
-            bg = 231
-        elif k == 1 and ratio < 0.35:
-            bg = 196
-        elif k == 1 and ratio < 0.7:
-            bg = 208
-        elif now < e.freeze_until:
-            bg = 195
-        elif now < e.slow_until:
-            bg = 45
-        if hidden:
-            glyph, attr = ("░░" if self.emoji else "::"), P(250, bg)
-        else:
-            glyph = self.enemy_glyph(e.kind)
-            fg = TEXT_COLORS[e.kind]
-            if not self.emoji and bg in (196, 208, 231, 45, 195):
-                fg = 16
-            attr = P(fg if not self.emoji else -1, bg, True)
-        try:
-            self.scr.addstr(row, col, glyph, attr)
-        except curses.error:
-            pass
-        if k >= 2 and not hidden and (ratio < 1 or e.kind == "chefe"):
-            n = max(1, int(ratio * 16 + 0.5))
-            bar = EIGHTHS[min(8, n)] + EIGHTHS[max(0, n - 8)]
-            color = 46 if ratio > 0.6 else (226 if ratio > 0.3 else 196)
-            try:
-                self.scr.addstr(row - 1, col, bar, P(color, 238))
-            except curses.error:
-                pass
-
-    def draw_sprites(self, L, g, in_range, occ):
-        """Monstros sem sobreposição: dois emojis encostados por 1 coluna fazem o terminal apagar a metade
-        cortada (fica uma célula preta). Quem não cabe vira contador ao lado de quem ficou no lugar."""
+    def draw_sprites(self, L, g, in_range):
         P, k = self.pal, L.k
-        offsets = (0, 1, -1, 2, -2) if k >= 2 else (0, 1, -1)
-        lo, hi = L.left, L.left + 2 * k * L.mw
-        placed, extra = [], {}
-        for e in sorted((e for e in g.enemies if e.alive), key=lambda e: -e.progress):  # mais adiantado primeiro
+        add = self.scr.addstr
+        now = g.time
+        for e in sorted(g.enemies, key=lambda e: e.progress):
+            if not e.alive:
+                continue
             fx, fy = g.enemy_pos(e)
             row, col = L.anchor(fx, fy)
-            spot = None
-            for dx in offsets:
-                c = col + dx
-                a, b = occ.get((row, c)), occ.get((row, c + 1))
-                ok_a = a is None or (a[0] == "porta" and a[1] == c)  # pode cobrir a porta inteira, não pela metade
-                ok_b = b is None or (b[0] == "porta" and b[1] == c)
-                if ok_a and ok_b and lo <= c and c + 1 < hi:
-                    spot = c
-                    break
-            if spot is None:
-                owner = (occ.get((row, col)) or occ.get((row, col + 1)) or ("", col))[1]
-                extra[(row, owner)] = extra.get((row, owner), 1) + 1
+            ratio = max(0.0, e.hp / e.max_hp)
+            hidden = e.hidden(now)
+            bg = self.tile_bg(g.mapa, fx, fy, in_range)
+            if now < e.hit_until:
+                bg = 231
+            elif k == 1 and ratio < 0.35:
+                bg = 196
+            elif k == 1 and ratio < 0.7:
+                bg = 208
+            elif now < e.slow_until:
+                bg = 45
+            if hidden:
+                glyph, attr = ("░░" if self.emoji else "::"), P(250, bg)
+            else:
+                glyph = self.enemy_glyph(e.kind)
+                fg = TEXT_COLORS[e.kind]
+                if not self.emoji and bg in (196, 208, 231, 45):
+                    fg = 16
+                attr = P(fg if not self.emoji else -1, bg, True)
+            try:
+                add(row, col, glyph, attr)
+            except curses.error:
+                pass
+            if k >= 2 and not hidden and (ratio < 1 or e.kind == "chefe"):
+                n = max(1, int(ratio * 16 + 0.5))
+                bar = EIGHTHS[min(8, n)] + EIGHTHS[max(0, n - 8)]
+                color = 46 if ratio > 0.6 else (226 if ratio > 0.3 else 196)
+                try:
+                    add(row - 1, col, bar, P(color, 236))
+                except curses.error:
+                    pass
+        for kind, x, y, t0, t1, text in g.effects:
+            if now < t0:
                 continue
-            occ[(row, spot)] = occ[(row, spot + 1)] = ("monstro", spot)
-            placed.append((e, fx, fy, row, spot))
-        for e, fx, fy, row, col in placed:
-            self.draw_enemy(L, g, e, fx, fy, row, col, in_range)
-            if k >= 2:
-                occ[(row - 1, col)] = occ[(row - 1, col + 1)] = ("texto", col)  # barra de vida
-        for (row, col), n in extra.items():  # contador: quantos monstros há naquele lugar
-            for c in (col + 2, col - 1):
-                if (row, c) not in occ and lo <= c < hi:
-                    put(self.scr, row, c, str(n) if n < 10 else "+", P(226, 52, True))
-                    occ[(row, c)] = ("texto", c)
-                    break
-
-    def place(self, occ, rows, col, text, attr, lo, hi):
-        """Escreve um rótulo na primeira linha livre (sem cortar emoji nem cobrir outro rótulo)."""
-        n = text_width(text)
-        for row in rows:
-            for c in (col, col - 1, col + 1):
-                if not (lo <= c and c + n <= hi) or any((row, c + i) in occ for i in range(n)):
-                    continue
-                # um espaço entre rótulos, senão "-22" e "-44" viram "-22-44"
-                if any(occ.get((row, c + i), ("",))[0] == "rotulo" for i in (-1, n)):
-                    continue
-                put(self.scr, row, c, text, attr)
-                for i in range(n):
-                    occ[(row, c + i)] = ("rotulo", c)
-                return True
-        return False
-
-    def free_glyph(self, occ, row, col):
-        """Um emoji de 2 colunas pode ir aqui sem cortar outro emoji ao meio."""
-        a, b = occ.get((row, col)), occ.get((row, col + 1))
-        return (a is None and b is None) or (a is not None and a == b and a[1] == col)
-
-    def fx_cells(self, L, g, x, y, r):
-        """Casas a até r casas de (x, y): linha, coluna e largura de cada uma na tela."""
-        k = L.k
-        for ty in range(max(0, int(y - r)), min(g.h, int(y + r) + 2)):
-            for tx in range(max(0, int(x - r)), min(g.w, int(x + r) + 2)):
-                if (tx - x) ** 2 + (ty - y) ** 2 <= r * r:
-                    for rr in range(k):
-                        yield L.top + ty * k + rr, L.left + tx * 2 * k, 2 * k
-
-    def tint(self, row, col, width, attr):
-        try:
-            self.scr.chgat(row, col, width, attr)
-        except curses.error:
-            pass
-
-    def draw_effects(self, L, g, in_range, layer, occ=None):
-        """layer "under": áreas (explosão, anel do Vórtice), antes dos monstros.
-        layer "over": tiros, raios, abates e números, por cima de tudo."""
-        P, k, now = self.pal, L.k, g.time
-        grid = g.mapa.grid
-        occ = {} if occ is None else occ
-        lo, hi = L.left, L.left + 2 * k * L.mw
-        for f in g.effects:
-            if now < f.t0:
-                continue
-            p = min(1.0, (now - f.t0) / max(1e-9, f.t1 - f.t0))
-            kind = f.kind
-            if layer == "under":
-                if kind == "boom":
-                    for row, col, width in self.fx_cells(L, g, f.x, f.y, f.r):
-                        self.tint(row, col, width, P(226, 208, True))
-                elif kind == "shot" and f.tower == "4":
-                    for row, col, width in self.fx_cells(L, g, f.x2, f.y2, TOWERS["4"]["slow_area"] * (0.5 + p / 2)):
-                        self.tint(row, col, width, P(231, 32))
-                continue
-            if kind == "shot" and f.tower in ("1", "2"):
-                x, y = f.x + (f.x2 - f.x) * p, f.y + (f.y2 - f.y) * p
-                xi, yi = int(x + 0.5), int(y + 0.5)
-                if (xi, yi) in g.towers or grid[yi][xi] in "SBT":
-                    continue  # não quebra o emoji de torre, entrada, base ou árvore
-                row, col = L.anchor(x, y)
-                col += 1 if k >= 2 else 0
-                if (row, col) in occ:
-                    continue  # não corta emoji de monstro
-                ch, fg = ("•", 226) if f.tower == "1" else ("●", 16)
-                put(self.scr, row, col, ch, P(fg, self.tile_bg(g.mapa, x, y, in_range), True))
-            elif (kind == "shot" and f.tower == "3") or kind == "beam":
-                dist = math.hypot(f.x2 - f.x, f.y2 - f.y)
-                steps = max(2, int(dist * 2) + 1)
-                for i in range(1 if kind == "shot" else 0, steps + 1):
-                    row, col = L.anchor(f.x + (f.x2 - f.x) * i / steps, f.y + (f.y2 - f.y) * i / steps)
-                    self.tint(row, col, 2, P(231, 201, True))
-            elif kind in ("corpse", "kill", "summon"):
-                row, col = L.anchor(f.x, f.y)
-                if not self.free_glyph(occ, row, col):
-                    continue
-                bg = self.tile_bg(g.mapa, f.x, f.y, in_range)
-                if kind == "corpse":
-                    glyph, attr = self.enemy_glyph(f.text), P(TEXT_COLORS[f.text] if not self.emoji else -1, bg, True)
-                else:
-                    glyph = self.g("summon") if kind == "summon" else (self.g("kill") if p < 0.45 else self.g("poof"))
-                    attr = P(226, bg, True)
-                put(self.scr, row, col, glyph, attr)
-                occ[(row, col)] = occ[(row, col + 1)] = ("efeito", col)
+            row, col = L.anchor(x, y)
+            if kind == "kill":
+                put(self.scr, row, col, self.g("kill"), P(226, self.tile_bg(g.mapa, x, y, in_range), True))
+            elif kind == "summon":
+                put(self.scr, row, col, self.g("summon"), P(226, self.tile_bg(g.mapa, x, y, in_range), True))
             elif kind == "gold":
-                row, col = L.anchor(f.x, f.y)
-                rise = int(p * k) + (1 if k >= 2 else 0)
-                self.place(occ, (row - rise, row - rise - 1), col, f.text, P(226, 236, True), lo, hi)
-            elif kind == "dmg" and self.numbers and k >= 2:
-                row, col = L.anchor(f.x, f.y)
-                up = int(p * (k - 1))
-                self.place(occ, (row - 2 - up, row - 3 - up), col, f.text,
-                           P(250, 236) if f.muted else P(231, 88, True), lo, hi)
-            elif kind == "immune" and k >= 2:
-                row, col = L.anchor(f.x, f.y)
-                self.place(occ, (row - 2, row - 3), col, f.text, P(250, 60, True), lo, hi)
+                rise = int((now - t0) / (t1 - t0) * k) + (1 if k >= 2 else 0)
+                put(self.scr, row - rise, col, text, P(226, 236, True))
             elif kind == "leak" and k >= 2:
-                row, col = L.anchor(f.x, f.y)
-                self.place(occ, (row - 1, row - 2), col, f.text, P(231, 196, True), lo, hi)
-
-    def draw_banner(self, L, g):
-        """Faixa no meio do mapa: número da onda, chegada e derrota do chefe."""
-        f = next((f for f in reversed(g.effects) if f.kind == "banner" and f.t0 <= g.time), None)
-        if f is None:
-            return
-        P = self.pal
-        boss = self.enemy_glyph("chefe").strip()
-        if f.text == "chefe":
-            text, attr = f"{boss} CHEFE CHEGOU {boss}", P(231, 160, True)
-        elif f.text.startswith("chefe_morto:"):
-            text, attr = f"CHEFE DERROTADO +{f.text.split(':')[1]}", P(16, 220, True)
-        else:
-            text, attr = f.text, P(16, 114, True)
-        mw = 2 * L.k * L.mw
-        width = min(mw, text_width(text) + 6)
-        x0 = L.left + (mw - width) // 2
-        y0 = L.top + (L.k * L.mh) // 2 - 1
-        self.block(y0, x0, width, 3, ["", text, ""], attr)
+                put(self.scr, row - 1, col, text, P(231, 196, True))
 
     # ------------------------------------------------------ desenho: telas
     def draw_menu(self, h, w):
@@ -2526,11 +2013,6 @@ class App:
         for k, c in TOWERS.items():
             blocks.append(("", f"{k} {t(k)} {c['name']} · {c['cost']} ouro · {c['info']}"))
         blocks += [("", "Melhore até o nível 3 (mais dano e alcance). Vender devolve metade do gasto."),
-                   ("", "No nível 3 cada torre ganha uma habilidade (★):")]
-        for k, c in TOWERS.items():
-            blocks.append(("", f"  {t(k)} {c['perk_info']}"))
-        blocks += [("", f"{self.g('aim').strip()} Mira (tecla t): o mais adiantado (1º), o de mais vida (forte) "
-                        "ou o mais perto. O painel mostra o dano por segundo e os abates da torre."),
                    ("h", "MONSTROS")]
         for kind, c in ENEMIES.items():
             when = "" if kind == "chefe" else f" (onda {c['wave']})"
@@ -2538,14 +2020,11 @@ class App:
         blocks += [
             ("h", "TOQUE"),
             ("", "Casa: põe o cursor; tocar de novo constrói ou melhora."),
-            ("", f"Barra de torres escolhe a torre. ▶ Onda chama a onda. {self.g('aim').strip()} Mira, "
-                 f"{self.g('up')}Melhorar e {self.g('sell')}Vender agem na torre do cursor. || no topo pausa."),
+            ("", f"Barra de torres escolhe a torre. ▶ Onda chama a onda. {self.g('up')}Melhorar e "
+                 f"{self.g('sell')}Vender agem na torre do cursor. || no topo pausa."),
             ("h", "TECLAS"),
-            ("", "setas ou wasd move · Enter constrói · 1-4 torre · u melhora · t mira · x vende · "
+            ("", "setas ou wasd move · Enter constrói · 1-4 torre · u melhora · x vende · "
                  "n onda · f acelera · p pausa · h ajuda"),
-            ("h", "TELA"),
-            ("", "Opções → Ajustar tela mostra a escala, uma régua para conferir os emojis e ativa a tela "
-                 "cheia e a fonte do jogo no Termux. Números de dano e vibração também ficam em Opções."),
             ("h", "CRIAR MAPAS"),
             ("", f"Menu → Criar mapa (ou Mapas → {self.g('new')}Novo). Ferramentas: 1 Entrada, 2 Trilha, "
                  "3 Base, 4 Grama (apaga), 5 Árvore, 6 Água."),
@@ -2587,25 +2066,19 @@ class App:
         self.center(1, "OPÇÕES", P(220, BG, True))
         bw = min(w - 4, 44)
         x0 = (w - bw) // 2
-        opts = self.options()
-        n = len(opts)
-        ih = 2 if h >= 3 + n * 3 + 6 else 1
-        step = ih + (1 if h >= 3 + n * (ih + 1) + 4 else 0)
-        for i, (action, label) in enumerate(opts):
-            y = 3 + i * step
+        for i, (action, label) in enumerate(self.options()):
+            y = 3 + i * 3
             sel = i == self.opt_i
             attr = P(16, 220, True) if sel else P(255, 237)
-            self.block(y, x0, bw, ih, [], attr, lambda i=i: self.option_choose(i))
-            put(self.scr, y, x0 + 1, clip(("▶ " if sel else "  ") + label, bw - 2), attr)
-        y = 3 + n * step
+            self.block(y, x0, bw, 2, [], attr, lambda i=i: self.option_choose(i))
+            put(self.scr, y, x0 + 1, ("▶ " if sel else "  ") + label, attr)
+        y = 3 + len(self.options()) * 3
         for ln in wrap("Use NÃO em Emojis se as figuras aparecerem desalinhadas no mapa.", bw):
-            if y < h:
-                put(self.scr, y, x0, ln, P(244, BG))
+            put(self.scr, y, x0, ln, P(244, BG))
             y += 1
-        if y + 1 < h:
-            put(self.scr, y + 1, x0, clip("Seus mapas: ~/.config/td-termux/mapas", bw), P(244, BG))
-        if self.has_message() and y + 3 < h:
-            put(self.scr, y + 3, x0, clip(self.message, bw), P(114, BG, True))
+        put(self.scr, y + 1, x0, clip("Seus mapas: ~/.config/td-termux/mapas", bw), P(244, BG))
+        if self.has_message():
+            put(self.scr, y + 3, x0, self.message, P(114, BG, True))
 
     def range_cells(self):
         g = self.game
@@ -2622,44 +2095,11 @@ class App:
         return wrap(step["text"].format(
             spawn=self.g("spawn"), base=self.g("base"), mark=self.g("mark"), gold=self.g("gold"),
             life=self.g("life"), fast=self.g("fast"), party=self.g("party"), up=self.g("up"),
-            sell=self.g("sell"), aim=self.g("aim").strip(), boss=self.enemy_glyph("chefe"), t1=self.tower_glyph("1"),
+            sell=self.g("sell"), boss=self.enemy_glyph("chefe"), t1=self.tower_glyph("1"),
             t3=self.tower_glyph("3"), t4=self.tower_glyph("4")), w - 2)
 
-    def hud_text(self, g, width):
-        life, gold, wave, kills = (self.g(n) for n in ("life", "gold", "wave", "kills"))
-        fast = f" {self.g('fast')}" if g.speed == 2 else ""
-        return fit([
-            f" {life}{g.life:<2}  {gold}{g.gold:<4}  {wave}{g.wave:<2}  {kills}{g.kills}" + (" " + fast if fast else ""),
-            f" {life}{g.life} {gold}{g.gold} {wave}{g.wave} {kills}{g.kills}" + fast,
-            f" {life}{g.life} {gold}{short_num(g.gold)} {wave}{g.wave} {kills}{short_num(g.kills)}" + fast,
-            f" {life}{g.life} {gold}{short_num(g.gold)} {wave}{g.wave}" + fast,
-        ], width)
-
-    def draw_wave_line(self, g, w):
-        P = self.pal
-        left = len(g.queue) + len(g.enemies)
-        boss = next((e for e in g.enemies if e.alive and e.kind == "chefe"), None)
-        if boss:  # barra de vida do chefe no topo
-            ratio = max(0.0, boss.hp / boss.max_hp)
-            self.bar_row(1, "", P(229, 236, True), w)
-            pre = f" {self.enemy_glyph('chefe').strip()} "
-            post = [f" {ratio * 100:.0f}% · faltam {left}", f" {ratio * 100:.0f}%"]
-            barw = max(4, min(16, w - text_width(pre) - text_width(post[0]) - 1))
-            n = int(ratio * barw * 8 + 0.5)
-            bar = ("█" * (n // 8) + (EIGHTHS[n % 8] if n % 8 else "")).ljust(barw)
-            put(self.scr, 1, 0, pre, P(229, 236, True))
-            x = text_width(pre)
-            put(self.scr, 1, x, bar, P(196, 238))
-            put(self.scr, 1, x + barw, fit(post, w - x - barw), P(229, 236, True))
-        elif g.wave_active or g.enemies:
-            self.bar_row(1, fit([f" Onda {g.wave}: faltam {left}", f" Onda {g.wave} · {left}"], w), P(229, 236, True), w)
-        else:
-            prev = self.wave_preview(g.next_queue)
-            self.bar_row(1, fit([f" Próxima onda {g.wave + 1}: {prev}", f" Próx. {g.wave + 1}: {prev}", f" {prev}"], w),
-                         P(250, 236), w)
-
     def draw_game(self, h, w):
-        g = self.game
+        g, P = self.game, self.pal
         panel = 1
         if self.tut:
             panel = 2 + max(len(self.tut_lines(s, w)) for s in self.tut)
@@ -2667,23 +2107,26 @@ class App:
         if L is None:
             self.draw_small(h, w, *min_size(g.w, g.h, panel))
             return
-        self.top_bar(w, self.hud_text(g, w - 7), self.open_pause)
-        self.draw_wave_line(g, w)
-        # mapa (treme um pouco quando um monstro chega à base)
-        D = L
-        if g.time < g.shake_until:
-            dx = 1 if int(time.monotonic() * 30) % 2 else -1
-            if 0 <= L.left + dx and L.left + dx + 2 * L.k * L.mw <= w:
-                D = L.shifted(dx)
+        # topo: placar (tocar pausa)
+        hud = (f" {self.g('life')}{g.life}  {self.g('gold')}{g.gold}  {self.g('wave')}{g.wave}"
+               f"  {self.g('kills')}{g.kills}")
+        if g.speed == 2:
+            hud += f"  {self.g('fast')}"
+        self.top_bar(w, hud, self.open_pause)
+        # linha 2: onda atual ou a próxima
+        if g.wave_active or g.enemies:
+            text = f" Onda {g.wave}: faltam {len(g.queue) + len(g.enemies)}"
+            if any(e.kind == "chefe" for e in g.enemies):
+                text += f" · chefe {self.enemy_glyph('chefe')}"
+            self.bar_row(1, text, P(229, 236, True), w)
+        else:
+            self.bar_row(1, f" Próxima onda {g.wave + 1}: {self.wave_preview(g.next_queue)}", P(250, 236), w)
+        # mapa
         in_range = self.range_cells()
         step = self.tut_step()
-        occ = self.draw_tiles(D, g.mapa, g.towers, in_range, self.cursor, set(step["marks"]) if step else (),
-                              base_flash=g.time < g.leak_until, spawn_flash=g.time < g.spawn_until,
-                              clock=(g.time, g.speed))
-        self.draw_effects(D, g, in_range, "under")
-        self.draw_sprites(D, g, in_range, occ)
-        self.draw_effects(D, g, in_range, "over", occ)
-        self.draw_banner(D, g)
+        self.draw_tiles(L, g.mapa, g.towers, in_range, self.cursor, set(step["marks"]) if step else (),
+                        base_flash=g.time < g.leak_until, spawn_flash=g.time < g.spawn_until)
+        self.draw_sprites(L, g, in_range)
         self.map_hit = (L, self.tap_cell)
         # painel e barras
         if step:
@@ -2717,28 +2160,21 @@ class App:
     def draw_info(self, y, w):
         g, P = self.game, self.pal
         if self.has_message():
-            self.bar_row(y, self.msg_fit(w), P(229, 238, True), w)
+            self.bar_row(y, " " + self.message, P(229, 238, True), w)
             return
         cx, cy = self.cursor
         t = g.towers.get((cx, cy))
         c = g.mapa.at(cx, cy)
         if t:
-            gl, nm = self.tower_glyph(t.key), t.cfg["name"]
-            kills = f"{self.g('kills')}{t.kills}"
-            mode = MODE_SHORT[t.mode]
-            perk = f" · ★{t.cfg['perk']}" if t.perk else ""
-            opts = [f" {gl} {nm} nv{t.level} · {t.dps:.0f}/s · {kills} · mira {mode}{perk}",
-                    f" {gl} {nm} nv{t.level} · {t.dps:.0f}/s · {kills} · mira {mode}",
-                    f" {gl} nv{t.level} {t.dps:.0f}/s {kills} {mode}"]
+            info = f" {self.tower_glyph(t.key)} {t.cfg['name']} nv{t.level} · dano {t.damage:.0f} · alc {t.range:.1f}"
         elif not self.cursor_moved:
-            opts = [" Toque numa casa de grama para construir", " Toque na grama para construir"]
+            info = " Toque numa casa de grama para construir"
         elif c == ".":
             s = TOWERS[self.selected]
-            gl = self.tower_glyph(self.selected)
-            opts = [f" {gl} {s['name']} {s['cost']}: {s['info']}", f" {gl} {s['name']} {s['cost']}"]
+            info = f" {self.tower_glyph(self.selected)} {s['name']} {s['cost']}: {s['info']}"
         else:
-            opts = [f" {TILES[c]}: não dá para construir", f" {TILES[c]}: sem torre"]
-        self.bar_row(y, fit(opts, w), P(250, 234), w)
+            info = f" {TILES[c]}: não dá para construir"
+        self.bar_row(y, info, P(250, 234), w)
 
     def draw_tower_bar(self, y, bar, w):
         g, P = self.game, self.pal
@@ -2747,37 +2183,30 @@ class App:
             sel = k == self.selected
             afford = g.gold >= c["cost"]
             attr = P(16, 220, True) if sel else P(255 if afford else 244, 237 if i % 2 == 0 else 238, afford)
-            top = f"{self.tower_glyph(k)} {c['cost']}" if bar == 2 else [f"{k}{self.tower_glyph(k)}{c['cost']}",
-                                                                          f"{self.tower_glyph(k)}{c['cost']}"]
-            buttons.append(([top, [c["name"], c["name"][:3] + ".", c["name"][:3]]], attr,
-                            lambda k=k: setattr(self, "selected", k)))
+            top = f"{self.tower_glyph(k)} {c['cost']}" if bar == 2 else f"{k}{self.tower_glyph(k)}{c['cost']}"
+            buttons.append(([top, c["name"]], attr, lambda k=k: setattr(self, "selected", k)))
         self.row_buttons(y, bar, w, buttons)
 
     def draw_action_bar(self, y, bar, w):
         g, P = self.game, self.pal
         off = P(244, 236)
         if g.wave_active or g.enemies:
-            n = len(g.queue) + len(g.enemies)
-            wave = ([[f"Onda {g.wave}", f"{g.wave}"], [f"faltam {n}", f"{n}"]], off, self.call_wave)
+            wave = ([f"Onda {g.wave}", f"faltam {len(g.queue) + len(g.enemies)}"], off, self.call_wave)
         else:
-            wave = ([[f"▶ Onda {g.wave + 1}", f"▶ {g.wave + 1}"], ["chamar", ""]], P(16, 114, True), self.call_wave)
-        speed = ([f"{self.g('fast')} {g.speed}x", ["rápido" if g.speed == 2 else "normal", ""]],
+            wave = ([f"▶ Onda {g.wave + 1}", "chamar"], P(16, 114, True), self.call_wave)
+        speed = ([f"{self.g('fast')} {g.speed}x", "rápido" if g.speed == 2 else "normal"],
                  P(16, 39, True) if g.speed == 2 else P(255, 238, True), self.toggle_speed)
         t = g.towers.get(tuple(self.cursor))
-        aim_icon = self.g("aim").strip()
         if t:
             up = t.upgrade_cost
             can = up is not None and g.gold >= up
-            upgrade = ([f"{self.g('up')}{up if up else 'máx'}", ["Melhorar", "Melh."]],
+            upgrade = ([f"{self.g('up')}{up if up else 'máx'}", "Melhorar"],
                        P(16, 214, True) if can else P(250, 238), self.do_upgrade)
-            aim = ([[f"{aim_icon} {MODE_SHORT[t.mode]}", f"{aim_icon}{MODE_SHORT[t.mode][:2]}"], ["Mira", ""]],
-                   P(231, 60, True), self.do_mode)
-            sell = ([f"{self.g('sell')}+{t.refund}", ["Vender", "Vend."]], P(255, 94, True), self.do_sell)
+            sell = ([f"{self.g('sell')}+{t.refund}", "Vender"], P(255, 94, True), self.do_sell)
         else:
-            upgrade = ([f"{self.g('up')}", ["Melhorar", "Melh."]], off, self.do_upgrade)
-            aim = ([aim_icon, ["Mira", ""]], off, self.do_mode)
-            sell = ([f"{self.g('sell')}", ["Vender", "Vend."]], off, self.do_sell)
-        self.row_buttons(y, bar, w, [wave, speed, aim, upgrade, sell])
+            upgrade = ([f"{self.g('up')}", "Melhorar"], off, self.do_upgrade)
+            sell = ([f"{self.g('sell')}", "Vender"], off, self.do_sell)
+        self.row_buttons(y, bar, w, [wave, speed, upgrade, sell])
 
     def draw_maps(self, h, w):
         P = self.pal
@@ -2826,7 +2255,7 @@ class App:
         # botões
         btn = P(255, 237, True)
         self.row_buttons(by, bh, w, [
-            (["▶ Jogar"], P(16, 114, True), self.maps_play),
+            ([f"▶ Jogar"], P(16, 114, True), self.maps_play),
             ([f"{self.g('edit')}Editar"], btn, self.maps_edit),
             ([f"{self.g('new')}Novo"], btn, self.maps_new)])
         self.row_buttons(by + bh, bh, w, [
@@ -2834,7 +2263,7 @@ class App:
             ([f"{self.g('del')}Apagar"], P(255, 52, True) if not m.builtin else P(244, 236), self.maps_delete),
             (["◀ Voltar"], btn, lambda: setattr(self, "screen", "menu"))])
         if self.has_message():
-            self.bar_row(by - 1, self.msg_fit(w), P(229, 238, True), w)
+            self.bar_row(by - 1, " " + self.message, P(229, 238, True), w)
 
     def draw_preview(self, m, y, w, full):
         """Miniatura do mapa: 2 colunas por casa, ou meia linha por casa com ▀."""
@@ -2860,25 +2289,22 @@ class App:
         if L is None:
             self.draw_small(h, w, *min_size(m.w, m.h))
             return
-        dirty = " *" if ed.dirty else ""
-        self.top_bar(w, fit([f" {self.g('edit')}EDITOR · {m.name}{dirty}  {m.w}×{m.h}",
-                             f" {self.g('edit')}{m.name}{dirty}"], w - 7), self.ed_menu)
+        self.top_bar(w, f" {self.g('edit')}EDITOR · {m.name}{' *' if ed.dirty else ''}  {m.w}×{m.h}", self.ed_menu)
         path, err = m.check()
         if err:
-            self.bar_row(1, fit([f" ✘ {err.msg}", f" ✘ {err.short}"], w), P(255, 52, True), w)
+            self.bar_row(1, f" ✘ {err.msg}", P(255, 52, True), w)
         else:
-            self.bar_row(1, fit([f" ✔ Pronto para jogar: trilha com {len(path)} casas",
-                                 f" ✔ Pronto: {len(path)} casas"], w), P(16, 114, True), w)
+            self.bar_row(1, f" ✔ Pronto para jogar: trilha com {len(path)} casas", P(16, 114, True), w)
         self.draw_tiles(L, m, cursor=ed.cursor if ed.kbd else None, alert=err.pos if err else None,
                         anchor=ed.anchor if ed.tool in "#B" else None)
         self.map_hit = (L, self.ed_tap)
         if self.has_message():
-            self.bar_row(L.panel_y, self.msg_fit(w), P(229, 238, True), w)
+            self.bar_row(L.panel_y, " " + self.message, P(229, 238, True), w)
         else:
-            hints = [" " + Editor.HINTS[ed.tool], " " + Editor.HINTS_SHORT[ed.tool]]
+            hint = Editor.HINTS[ed.tool]
             if ed.tool in "#B" and ed.anchor:
-                hints = [" Siga em linha reta a partir do laranja", " Siga reto do laranja"]
-            self.bar_row(L.panel_y, fit(hints, w), P(250, 234), w)
+                hint = "Siga em linha reta a partir do laranja"
+            self.bar_row(L.panel_y, " " + hint, P(250, 234), w)
         # ferramentas
         swatch = {".": ("  ", 28, 34), "#": ("  ", 137, -1), "~": ("~~", 25, 45),
                   "S": (self.g("spawn"), 137, 255), "B": (self.g("base"), 137, 255), "T": (self.g("tree"), 28, 34)}
@@ -2890,8 +2316,7 @@ class App:
             sel = t == ed.tool
             attr = P(16, 220, True) if sel else P(255, 237 if i % 2 == 0 else 238)
             name = TILES[t]
-            self.block(y, x0, bw, L.bar, [] if L.bar == 1 else ["", [name, Editor.SHORT[t], Editor.SHORT[t][:3]]], attr,
-                       lambda t=t: self.ed_tool(t))
+            self.block(y, x0, bw, L.bar, [] if L.bar == 1 else ["", name], attr, lambda t=t: self.ed_tool(t))
             text, sbg, sfg = swatch[t]
             if L.bar == 1:
                 label = clip(f"{i + 1}{name}", max(0, bw - 3))
@@ -2902,10 +2327,10 @@ class App:
                 put(self.scr, y, x0 + (bw - 2) // 2, text, P(sfg if not self.emoji or t in ".#~" else -1, sbg, True))
         btn = P(255, 238, True)
         self.row_buttons(L.bars_y + L.bar, L.bar, w, [
-            ([["« Desfazer", "« Desf."]], btn, self.ed_undo),
-            ([[f"{self.g('dice')}Gerar", "Gerar"]], btn, self.ed_generate),
-            ([["▶ Testar", "▶Testar"]], P(16, 114, True), self.ed_test),
-            ([[f"{self.g('save')}Salvar", "Salvar"]], btn, self.ed_save)])
+            (["« Desfazer"], btn, self.ed_undo),
+            ([f"{self.g('dice')}Gerar"], btn, self.ed_generate),
+            (["▶ Testar"], P(16, 114, True), self.ed_test),
+            ([f"{self.g('save')}Salvar"], btn, self.ed_save)])
 
     def draw_overlay(self, h, w):
         P = self.pal
@@ -2980,10 +2405,6 @@ class App:
             self.anim += dt
             if self.screen == "game" and self.game and not self.overlay and not self.too_small:
                 self.game.update(dt)
-                if self.game.events:
-                    for ev in self.game.events:
-                        self.vibrate({"vazou": 70, "chefe": 250, "chefe_morto": 120}.get(ev, 60))
-                    self.game.events.clear()
                 if self.tut:
                     self.check_tutorial()
                 if self.game and self.game.over and self.overlay is None:

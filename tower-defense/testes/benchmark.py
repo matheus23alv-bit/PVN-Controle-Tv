@@ -40,13 +40,20 @@ def scenario():
     return g
 
 
+def fire_frame(g):
+    for t in g.towers.values():
+        t.last = -999.0  # pior caso: todas as torres prontas para atirar em todo quadro
+    g._fire()
+    g.time += 0.05
+    g.effects = [f for f in g.effects if f.t1 > g.time]
+
+
 def bench(scr):
     g = scenario()
+    g.visual = False
     t0 = time.perf_counter()
     for _ in range(FRAMES):
-        for t in g.towers.values():
-            t.last = -999.0  # pior caso: todas as torres prontas para atirar em todo quadro
-        g._fire()
+        fire_frame(g)
     logic = (time.perf_counter() - t0) / FRAMES * 1000
 
     app = td.App(scr, emoji=True, touch=False, start="play")
@@ -54,17 +61,18 @@ def bench(scr):
     app.cursor, app.cursor_moved = [5, 9], True
     t0 = time.perf_counter()
     for _ in range(FRAMES):
+        fire_frame(app.game)  # com tiros, explosões, números de dano e abates na tela
         app.render()
-    draw = (time.perf_counter() - t0) / FRAMES * 1000
-    return logic, draw
+    total = (time.perf_counter() - t0) / FRAMES * 1000
+    return logic, total - logic, len(app.game.effects)
 
 
 if __name__ == "__main__":
     os.environ.setdefault("ESCDELAY", "25")
     locale.setlocale(locale.LC_ALL, "")
-    logic, draw = curses.wrapper(bench)
+    logic, draw, fx = curses.wrapper(bench)
     out = sys.stderr  # o stdout pertence ao curses e precisa ser um terminal
-    print(f"{os.path.basename(TD_PATH)}  torres={N_TOWERS} inimigos={N_ENEMIES}", file=out)
+    print(f"{os.path.basename(TD_PATH)}  torres={N_TOWERS} inimigos={N_ENEMIES} efeitos na tela={fx}", file=out)
     print(f"  lógica (todas as torres atirando): {logic:6.2f} ms/quadro", file=out)
-    print(f"  desenho com emojis e 256 cores:    {draw:6.2f} ms/quadro", file=out)
+    print(f"  efeitos + desenho, 256 cores:      {draw:6.2f} ms/quadro", file=out)
     print(f"  total: {logic + draw:6.2f} ms/quadro (orçamento a 20 quadros/s: 50 ms)", file=out)

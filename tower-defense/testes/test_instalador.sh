@@ -40,6 +40,29 @@ termux tx "$WORK/tx/.local/share/tower-defense/instalar.sh" --remover >/dev/null
 check "Remover restaura o arquivo byte a byte" 'cmp -s "$WORK/original" "$P"'
 check "Remover apaga comandos e arquivos" '[ ! -e "$WORK/tx-prefix/bin/td" ] && [ ! -e "$WORK/tx/.local/share/tower-defense" ]'
 
+echo "== Termux: tela cheia e fonte"
+mkdir -p "$WORK/tf/.termux" "$WORK/tf-prefix/bin"
+printf '%s\n' "fullscreen = false" "use-black-ui = true" > "$WORK/tf/.termux/termux.properties"
+echo "minha fonte" > "$WORK/tf/.termux/font.ttf"
+cp "$WORK/tf/.termux/termux.properties" "$WORK/tf-original"
+TP="$WORK/tf/.termux/termux.properties"; TF="$WORK/tf/.termux/font.ttf"
+termux tf "$INST" --sem-teclas --tela-cheia --fonte >/dev/null 2>&1
+check "Tela cheia gravada no lugar da configuracao antiga" '[ "$(grep -c "^fullscreen" "$TP")" = 1 ] && grep -q "^fullscreen = true" "$TP" && grep -q "^terminal-margin-horizontal = 0" "$TP"'
+check "Outras opcoes da pessoa preservadas" 'grep -q "use-black-ui = true" "$TP"'
+check "Fonte do jogo instalada e a antiga guardada" 'cmp -s "$SRC/fontes/DejaVuSansMono.ttf" "$TF" && grep -q "minha fonte" "$WORK/tf/.termux/font.ttf.antes-do-td"'
+check "Fonte e licenca copiadas junto do jogo" '[ -f "$WORK/tf/.local/share/tower-defense/fontes/DejaVuSansMono.ttf" ] && [ -f "$WORK/tf/.local/share/tower-defense/fontes/LICENCA.txt" ]'
+termux tf "$INST" --sem-teclas --tela-cheia --fonte >/dev/null 2>&1
+check "Reinstalar nao duplica nem perde o backup da fonte" '[ "$(grep -c "^fullscreen" "$TP")" = 1 ] && grep -q "minha fonte" "$WORK/tf/.termux/font.ttf.antes-do-td"'
+out="$(termux tf "$WORK/tf/.local/share/tower-defense/instalar.sh" --so-tela --sem-tela-cheia 2>&1)"
+check "--so-tela desliga a tela cheia sem reinstalar" '! grep -q "^fullscreen" "$TP" && grep -q "use-black-ui = true" "$TP" && ! grep -q "Arquivos do jogo" <<<"$out" && grep -q "tela cheia desligada; o Termux recarregou" <<<"$out"'
+termux tf "$WORK/tf/.local/share/tower-defense/instalar.sh" --so-tela --tela-cheia >/dev/null 2>&1
+termux tf "$WORK/tf/.local/share/tower-defense/instalar.sh" --so-tela --sem-fonte >/dev/null 2>&1
+check "--sem-fonte devolve a fonte da pessoa" 'grep -q "minha fonte" "$TF" && [ ! -e "$WORK/tf/.termux/font.ttf.antes-do-td" ]'
+termux tf "$WORK/tf/.local/share/tower-defense/instalar.sh" --so-tela --fonte >/dev/null 2>&1
+termux tf "$WORK/tf/.local/share/tower-defense/instalar.sh" --remover >/dev/null 2>&1
+check "Remover devolve termux.properties e fonte byte a byte" 'cmp -s "$WORK/tf-original" "$TP" && grep -q "minha fonte" "$TF"'
+check "--so-tela fora do Termux e recusado" '! HOME="$WORK/lin" bash "$INST" --so-tela --tela-cheia >/dev/null 2>&1'
+
 echo "== Termux sem configuracao, via curl | bash"
 PORT=18090
 (cd "$SRC" && exec python3 -m http.server "$PORT" >/dev/null 2>&1) & SRV=$!
@@ -48,8 +71,11 @@ mkdir -p "$WORK/cu" "$WORK/cu-prefix/bin"
 out="$(cat "$INST" | HOME="$WORK/cu" TERMUX_VERSION=0.118 PREFIX="$WORK/cu-prefix" TD_REPO_RAW="http://localhost:$PORT" bash -s -- --teclas 2>&1)"
 check "Baixa os arquivos pela rede" 'grep -q "baixado do GitHub" <<<"$out" && [ -f "$WORK/cu/.local/share/tower-defense/td.py" ]'
 check "Script completo apesar de vir pela entrada padrao" 'grep -q "instalado" <<<"$out"'
+cat "$INST" | HOME="$WORK/cu" TERMUX_VERSION=0.118 PREFIX="$WORK/cu-prefix" TD_REPO_RAW="http://localhost:$PORT" bash -s -- --sem-teclas --fonte >/dev/null 2>&1
+check "Pelo curl, a fonte e baixada so quando pedida" 'cmp -s "$SRC/fontes/DejaVuSansMono.ttf" "$WORK/cu/.termux/font.ttf" && [ -e "$WORK/cu/.termux/.td-sem-fonte-original" ]'
 termux cu "$WORK/cu/.local/share/tower-defense/instalar.sh" --remover >/dev/null 2>&1
 check "Remover apaga o termux.properties criado pelo jogo" '[ ! -e "$WORK/cu/.termux/termux.properties" ]'
+check "Remover apaga a fonte que nao existia antes" '[ ! -e "$WORK/cu/.termux/font.ttf" ] && [ ! -e "$WORK/cu/.termux/.td-sem-fonte-original" ]'
 
 echo "== Falhas"
 bad="$(cat "$INST" | HOME="$WORK/bad" TD_REPO_RAW="http://localhost:1" bash -s -- --sem-teclas 2>&1)"; code=$?
