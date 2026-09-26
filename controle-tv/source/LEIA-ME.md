@@ -6,12 +6,12 @@ A versão instalada está no arquivo `VERSION` desta pasta, que é a única font
 
 ## Como rodar
 
-Abra `index.html` direto no navegador, ou sirva esta pasta com qualquer servidor estático:
-
-```bash
-python3 -m http.server 8080
-# acesse http://localhost:8080
-```
+| Onde | Como |
+|---|---|
+| Windows | Dois cliques em `iniciar.bat` |
+| Linux / macOS | `bash iniciar.sh` |
+| Celular (Termux) | `bash iniciar.sh` — sobe um servidor local e abre no navegador |
+| Qualquer lugar | Abrir `index.html` no navegador |
 
 Para publicar, envie o conteúdo desta pasta para qualquer hospedagem estática (Vercel, Netlify, GitHub Pages, Firebase Hosting). Não há configuração extra.
 
@@ -22,6 +22,7 @@ Para publicar, envie o conteúdo desta pasta para qualquer hospedagem estática 
 | `index.html` | Estrutura da TV, do controle e do painel de sinais |
 | `style.css` | Visual, animações e layout responsivo |
 | `app.js` | Estado, comandos, persistência e atalhos de teclado |
+| `iniciar.bat` / `iniciar.sh` | Atalhos para abrir no Windows / Linux / Termux |
 | `VERSION` | Número da versão atual |
 | `CHANGELOG.md` | Histórico de alterações |
 
@@ -41,7 +42,7 @@ A TV liga e desliga com animação; volume, mudo e troca de canal (botões, tecl
 | Backspace | Voltar |
 | Esc | Início (volta para a fonte TV) |
 
-Atalhos com Ctrl, Alt ou Cmd são ignorados para não conflitar com o navegador.
+Atalhos com Ctrl, Alt ou Cmd são ignorados para não conflitar com o navegador. Segurar a tecla repete apenas volume, canal e setas.
 
 ## Limitações conhecidas
 

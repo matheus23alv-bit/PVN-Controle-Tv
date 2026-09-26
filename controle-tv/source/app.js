@@ -150,7 +150,7 @@
       state.power = !state.power;
       if (!state.power) {
         state.muted = false;
-        state.pendingDigits = "";
+        cancelDigits();
       }
     },
     source() {
@@ -203,6 +203,7 @@
       state.pendingDigits = (state.pendingDigits + digit).slice(-2);
       clearTimeout(digitTimer);
       digitTimer = setTimeout(() => {
+        if (!state.pendingDigits) return;
         const target = parseInt(state.pendingDigits, 10);
         const idx = CHANNELS.findIndex((c) => c.num === target);
         if (idx !== -1) changeChannel(idx);
@@ -213,9 +214,15 @@
       }, 900);
     },
     "clear-digit"() {
-      state.pendingDigits = "";
+      cancelDigits();
     },
   };
+
+  function cancelDigits() {
+    // sem cancelar o timer, a confirmação disparava com dígitos vazios e mostrava "Canal NaN"
+    clearTimeout(digitTimer);
+    state.pendingDigits = "";
+  }
 
   function changeChannel(newIndex) {
     if (newIndex === state.channelIndex) return;
@@ -308,20 +315,25 @@
     Escape: "home",
   };
 
+  // só estes comandos repetem ao segurar a tecla; os demais (power, mudo, fonte) disparariam em rajada
+  const REPEATABLE = new Set(["vol-up", "vol-down", "chan-up", "chan-down", "nav-up", "nav-down", "nav-left", "nav-right"]);
+
   document.addEventListener("keydown", (e) => {
     if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
 
+    const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
     let btn = null;
-    if (e.key >= "0" && e.key <= "9") {
-      btn = document.querySelector(`.btn-key[data-digit="${e.key}"]`);
-    } else if (KEY_MAP[e.key]) {
-      btn = document.querySelector(`.btn[data-cmd="${KEY_MAP[e.key]}"]`);
+    if (key >= "0" && key <= "9") {
+      btn = document.querySelector(`.btn-key[data-digit="${key}"]`);
+    } else if (KEY_MAP[key]) {
+      btn = document.querySelector(`.btn[data-cmd="${KEY_MAP[key]}"]`);
     }
     if (!btn) return;
 
     // evita que Espaço/Enter também "cliquem" o botão focado e disparem um segundo comando
     e.preventDefault();
+    if (e.repeat && !REPEATABLE.has(btn.dataset.cmd)) return;
     handlePress(btn);
   });
 

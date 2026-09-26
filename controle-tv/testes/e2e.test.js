@@ -214,6 +214,52 @@ const power = (page) => page.getAttribute("#tv", "data-power");
     await ctx.close();
   }
 
+  // 14. Digitação interrompida (⌫ ou desligar antes de confirmar)
+  {
+    const { ctx, page } = await fresh(browser);
+    await page.click('[data-cmd="power"]');
+    await page.click('[data-digit="5"]');
+    await page.click('[data-cmd="clear-digit"]');
+    await page.waitForTimeout(1100);
+    const nameAfterClear = await txt(page, "#channelName");
+    record("Apagar dígito não mostra 'Canal NaN'", !/nan/i.test(nameAfterClear) && (await txt(page, "#channelNum")) === "1", `tela: "${nameAfterClear}"`);
+    await page.click('[data-digit="7"]');
+    await page.click('[data-cmd="power"]');
+    await page.click('[data-cmd="power"]');
+    await page.waitForTimeout(1100);
+    const nameAfterPower = await txt(page, "#channelName");
+    const numAfterPower = await txt(page, "#channelNum");
+    record("Desligar durante a digitação cancela a troca", !/nan/i.test(nameAfterPower) && numAfterPower === "1", `canal ${numAfterPower}, tela: "${nameAfterPower}"`);
+    await ctx.close();
+  }
+
+  // 15. Tecla segurada (repetição automática do teclado)
+  {
+    const { ctx, page } = await fresh(browser);
+    for (let i = 0; i < 5; i++) await page.keyboard.down(" ");
+    await page.keyboard.up(" ");
+    const p = await power(page);
+    const logs = await page.locator("#irLogList li").count();
+    record("Segurar Espaço liga uma vez só", p === "on" && logs === 1, `power=${p}, sinais=${logs}`);
+    for (let i = 0; i < 5; i++) await page.keyboard.down("+");
+    await page.keyboard.up("+");
+    record("Segurar + repete o volume", (await txt(page, "#osdVolumeVal")) === "30");
+    await page.keyboard.press("Shift+M");
+    record("M maiúsculo (Caps Lock) também ativa o mudo", await page.locator("#osdMute.show").count() === 1);
+    await ctx.close();
+  }
+
+  // 16. Toque no celular e foco pelo teclado
+  {
+    const { ctx, page } = await fresh(browser, { width: 390, height: 844 });
+    const ta = await page.$eval('[data-cmd="vol-up"]', (b) => getComputedStyle(b).touchAction);
+    record("Toques rápidos nos botões não dão zoom (touch-action)", ta === "manipulation", `touch-action: ${ta}`);
+    await page.keyboard.press("Tab");
+    const outline = await page.evaluate(() => getComputedStyle(document.activeElement).outlineStyle);
+    record("Botão focado pelo Tab tem contorno visível", outline !== "none", `outline-style: ${outline}`);
+    await ctx.close();
+  }
+
   await browser.close();
   const failed = results.filter((r) => !r.ok && !r.pending);
   const todo = results.filter((r) => !r.ok && r.pending);

@@ -2,6 +2,19 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versionamento semântico.
 
+## [1.0.2] — 2026-09-25
+
+### Adicionado
+- `iniciar.bat`: abre o controle no navegador padrão do Windows com dois cliques.
+- `iniciar.sh`: abre no Linux/macOS; no Termux sobe um servidor local e abre no navegador do Android, escolhendo sozinho uma porta livre entre 8080 e 8099.
+- Contorno de foco visível (`:focus-visible`) para quem navega pelo teclado com Tab.
+
+### Corrigido
+- "Canal NaN indisponível" aparecia ao apertar ⌫ ou desligar a TV logo depois de digitar um número (regressão da 1.0.1).
+- Segurar Espaço ligava e desligava a TV em rajada; agora só volume, canal e setas repetem ao segurar a tecla.
+- Atalho `m` não funcionava com Caps Lock ligado (`M`).
+- No celular, dois toques rápidos no mesmo botão (ex.: VOL+) davam zoom na página (regressão da 1.0.1, que liberou o zoom); o zoom por pinça continua disponível.
+
 ## [1.0.1] — 2026-09-25
 
 ### Corrigido

@@ -184,5 +184,47 @@
     "ok": true,
     "detail": "viewport bloqueia zoom",
     "pending": false
+  },
+  {
+    "name": "Apagar dígito não mostra 'Canal NaN'",
+    "ok": true,
+    "detail": "tela: \"Canal 1\"",
+    "pending": false
+  },
+  {
+    "name": "Desligar durante a digitação cancela a troca",
+    "ok": true,
+    "detail": "canal 1, tela: \"Canal 1\"",
+    "pending": false
+  },
+  {
+    "name": "Segurar Espaço liga uma vez só",
+    "ok": true,
+    "detail": "power=on, sinais=1",
+    "pending": false
+  },
+  {
+    "name": "Segurar + repete o volume",
+    "ok": true,
+    "detail": "",
+    "pending": false
+  },
+  {
+    "name": "M maiúsculo (Caps Lock) também ativa o mudo",
+    "ok": true,
+    "detail": "",
+    "pending": false
+  },
+  {
+    "name": "Toques rápidos nos botões não dão zoom (touch-action)",
+    "ok": true,
+    "detail": "touch-action: manipulation",
+    "pending": false
+  },
+  {
+    "name": "Botão focado pelo Tab tem contorno visível",
+    "ok": true,
+    "detail": "outline-style: solid",
+    "pending": false
   }
 ]

@@ -1,5 +1,7 @@
 """Testes da lógica do jogo (sem interface). Uso: python3 -m unittest testes/test_logica.py"""
+import copy
 import importlib.util
+import math
 import os
 import random
 import unittest
@@ -84,6 +86,53 @@ class TestTorres(unittest.TestCase):
         td.update_towers([tower], [e], self.path, 10.0, st)
         self.assertFalse(e.alive)
         self.assertEqual((st["gold"], st["kills"]), (e.gold, 1))
+
+
+def reference_update_towers(towers, enemies, path, now, state):
+    """Mira original da v1.0.x (O(torres x inimigos)), usada como gabarito."""
+    for t in towers:
+        cfg = td.TOWER_TYPES[t.type_key]
+        if now - t.last_shot < cfg["rate"]:
+            continue
+        target, best = None, -1.0
+        for e in enemies:
+            if not e.alive:
+                continue
+            ex, ey = td.enemy_pos(e, path)
+            if math.hypot(ex - t.x, ey - t.y) <= cfg["range"] and e.progress > best:
+                target, best = e, e.progress
+        if target is not None:
+            target.hp -= cfg["damage"]
+            t.last_shot = now
+            if target.hp <= 0:
+                target.alive = False
+                state["gold"] += target.gold
+                state["kills"] += 1
+
+
+class TestMiraOtimizadaEquivalente(unittest.TestCase):
+    def test_mesmo_resultado_que_a_mira_original(self):
+        rnd = random.Random(2026)
+        path = td.build_path()
+        free = [(x, y) for x in range(td.GRID_W) for y in range(td.GRID_H) if (x, y) not in set(path)]
+        for _ in range(500):
+            towers = [td.Tower(x, y, rnd.choice("123")) for x, y in rnd.sample(free, rnd.randint(1, 40))]
+            for t in towers:
+                t.last_shot = rnd.choice([-999.0, 9.5, 9.9])
+            enemies = []
+            for _ in range(rnd.randint(0, 50)):
+                e = td.Enemy(rnd.choice(["normal", "fast", "tank"]), rnd.randint(1, 20))
+                e.progress = rnd.uniform(0, len(path) - 1.001)
+                e.hp = rnd.uniform(1, 40)
+                enemies.append(e)
+            a_t, a_e = copy.deepcopy(towers), copy.deepcopy(enemies)
+            b_t, b_e = copy.deepcopy(towers), copy.deepcopy(enemies)
+            sa, sb = fresh_state(0), fresh_state(0)
+            reference_update_towers(a_t, a_e, path, 10.0, sa)
+            td.update_towers(b_t, b_e, path, 10.0, sb)
+            self.assertEqual(sa, sb)
+            self.assertEqual([(e.hp, e.alive) for e in a_e], [(e.hp, e.alive) for e in b_e])
+            self.assertEqual([t.last_shot for t in a_t], [t.last_shot for t in b_t])
 
 
 class TestInimigosEOndas(unittest.TestCase):

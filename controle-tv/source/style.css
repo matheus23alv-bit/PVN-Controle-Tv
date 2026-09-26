@@ -202,6 +202,8 @@ body{
   transition:transform .06s ease, box-shadow .06s ease, background .15s ease;
   font-family:inherit;
 }
+.btn{touch-action:manipulation;}
+.btn:focus-visible{outline:2px solid #7ee0ff; outline-offset:3px;}
 .btn:active, .btn.pressed{
   transform:translateY(3px);
   box-shadow:0 0 0 var(--key-shadow), 0 2px 4px -2px rgba(0,0,0,.6);

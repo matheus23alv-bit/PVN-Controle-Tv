@@ -6,16 +6,19 @@ A versão instalada está no arquivo `VERSION` desta pasta, que é a única font
 
 ## Instalação no Termux
 
+Um comando só, com internet:
+
 ```bash
-pkg update -y && pkg install python git -y
-git clone https://github.com/matheus23alv-bit/PVN-Controle-Tv.git
-cd PVN-Controle-Tv/tower-defense/source
-python td.py
+curl -fsSL https://raw.githubusercontent.com/matheus23alv-bit/PVN-Controle-Tv/refs/heads/claude/tower-defense-termux-yjzaeb/tower-defense/source/instalar.sh | bash
 ```
 
-O jogo precisa de uma tela de pelo menos **36 colunas × 21 linhas**. Se aparecer "Tela pequena demais", diminua a fonte do Termux com o gesto de pinça na tela e o jogo continua sozinho.
+Ou, com esta pasta já no celular: `bash instalar.sh`. Depois é só digitar `td`.
 
-Para usar as setas, ative a barra de teclas extras do Termux (Volume Baixo + Q). Sem ela, use `w` `a` `s` `d`.
+O instalador verifica o Python (instala se faltar), cria os comandos `td` e `tower-defense` e pergunta se você quer trocar a barra de teclas extras do Termux por uma feita para o jogo (com backup). Para atualizar, rode o instalador de novo. Para desinstalar: `bash ~/.local/share/tower-defense/instalar.sh --remover`.
+
+Sem instalar: `python td.py` nesta pasta.
+
+O jogo precisa de pelo menos **32 colunas × 16 linhas**. Se aparecer "Tela pequena demais", esconda o teclado ou diminua a fonte com o gesto de pinça.
 
 ## Objetivo
 
@@ -32,7 +35,10 @@ Inimigos saem do `S` e seguem o caminho `#` até a base `B`. Cada inimigo que ch
 | `n` | Chamar a próxima onda |
 | `p` | Pausar / continuar |
 | `r` | Nova partida (depois de perder) |
-| `q` ou Esc | Sair (pede confirmação durante a partida) |
+| `h` | Ajuda |
+| `q` ou Esc | Sair (durante a partida, `q` de novo confirma) |
+| Toque numa célula | Move o cursor; tocar de novo constrói |
+| Toque no seletor / rodapé | Escolhe a torre / chama a onda ou reinicia |
 
 ## Torres
 
@@ -59,5 +65,6 @@ Cada onda traz dois inimigos a mais que a anterior, e a vida deles cresce 18% po
 | Arquivo | Função |
 |---|---|
 | `td.py` | Jogo completo: lógica e interface |
+| `instalar.sh` | Instalador, atualizador e desinstalador |
 | `VERSION` | Número da versão atual |
 | `CHANGELOG.md` | Histórico de alterações |
