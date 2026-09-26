@@ -14,7 +14,7 @@ APP_DIR="${TD_HOME:-$HOME/.local/share/tower-defense}"
 PROPS="$HOME/.termux/termux.properties"
 PROPS_BACKUP="$HOME/.termux/termux.properties.antes-do-td"
 MARKER="# instalado pelo tower-defense"
-EXTRA_KEYS="extra-keys = [['ESC','1','2','3','4','u','x','UP','ENTER'],['p','n','f','h','q','KEYBOARD','LEFT','DOWN','RIGHT']]"
+EXTRA_KEYS="extra-keys = [['ESC','1','2','3','x','h','UP','ENTER'],['q','n','p','r','KEYBOARD','LEFT','DOWN','RIGHT']]"
 
 if [ -t 1 ]; then
   B=$'\e[1m'; D=$'\e[2m'; G=$'\e[32m'; Y=$'\e[33m'; R=$'\e[31m'; C=$'\e[36m'; N=$'\e[0m'
@@ -106,9 +106,7 @@ if [ "$ACTION" = "remove" ]; then
   exit 0
 fi
 
-printf '\n%s  ╭──────────────────────────────────╮%s\n' "$Y" "$N"
-printf '%s  │%s  🏰  %sTOWER DEFENSE%s · instalador  %s│%s\n' "$Y" "$N" "$B" "$N" "$Y" "$N"
-printf '%s  ╰──────────────────────────────────╯%s\n' "$Y" "$N"
+printf '\n%s  TOWER DEFENSE · instalador%s\n' "$B" "$N"
 printf '%s  %s%s\n\n' "$D" "$(is_termux && echo "Termux detectado" || echo "Linux detectado")" "$N"
 
 step "1/4  Python"
@@ -185,8 +183,3 @@ printf '\n%s  ✔ Tower Defense %s instalado%s\n\n' "$G$B" "$VERSION" "$N"
 printf '  Para jogar, digite:  %s%s%s\n' "$B" "${COMMANDS[-1]}" "$N"
 printf '  %sDica: esconda o teclado e jogue tocando na tela.%s\n' "$D" "$N"
 printf '  %sDesinstalar: bash %s/instalar.sh --remover%s\n\n' "$D" "$(short "$APP_DIR")" "$N"
-
-# le a resposta do terminal mesmo com "curl | bash"; sem terminal (testes), nao pergunta
-if [ -r /dev/tty ] && [ -w /dev/tty ] && ask "Abrir o tutorial agora?"; then
-  exec python3 "$APP_DIR/td.py" --tutorial </dev/tty >/dev/tty 2>&1
-fi

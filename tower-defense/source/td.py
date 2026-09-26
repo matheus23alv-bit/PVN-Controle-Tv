@@ -1,650 +1,1094 @@
 #!/usr/bin/env python3
-"""Tower Defense de terminal para Termux e Linux.
+"""Tower Defense para o terminal do Termux.
 
-Sem dependencias externas: usa apenas a biblioteca padrao (curses).
-Uso: python td.py [--sem-toque] [--versao] [--ajuda]
+Um arquivo, so biblioteca padrao (curses). Jogue pelo toque ou pelo teclado.
+  td                abre o menu
+  td --tutorial     comeca direto no tutorial
+  td --sem-emoji    desenha com letras (para celulares que desalinham emojis)
+  td --sem-toque    desativa o toque na tela
 """
 import bisect
 import curses
+import json
+import locale
 import math
 import os
 import random
 import sys
 import time
+import unicodedata
 
-GRID_W = 32
-GRID_H = 13
-MIN_W = GRID_W
-MIN_H = GRID_H + 3
-FPS = 30
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+CONFIG_DIR = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), "td-termux")
+CONFIG_FILE = os.path.join(CONFIG_DIR, "config.json")
+
+W, H = 18, 12                    # mapa em casas; cada casa ocupa 2 colunas do terminal
+MIN_W, MIN_H = 2 * W + 2, H + 5  # borda + HUD + seletor + status
+FPS = 20
 IDLE_WAIT = 0.25
 
-TOWER_TYPES = {
-    "1": {"name": "Arqueiro", "symbol": "A", "cost": 20, "range": 4.0, "damage": 8, "rate": 0.6},
-    "2": {"name": "Canhao", "symbol": "C", "cost": 50, "range": 3.0, "damage": 30, "rate": 1.6},
-    "3": {"name": "Mago", "symbol": "M", "cost": 35, "range": 6.0, "damage": 14, "rate": 1.0},
-}
+PATH_SEGS = [(0, 1, 15, 1), (15, 1, 15, 4), (15, 4, 2, 4), (2, 4, 2, 7),
+             (2, 7, 15, 7), (15, 7, 15, 10), (15, 10, 1, 10)]
 
-ENEMY_BASE = {
-    "normal": {"hp": 30, "speed": 2.2, "gold": 5, "symbol": "o", "dmg": 1},
-    "fast": {"hp": 18, "speed": 4.0, "gold": 6, "symbol": "*", "dmg": 1},
-    "tank": {"hp": 90, "speed": 1.2, "gold": 12, "symbol": "@", "dmg": 2},
+TOWERS = {
+    "1": {"name": "Arqueiro", "emoji": "🏹", "text": "A", "cost": 20, "range": 3.0, "dmg": 6, "rate": 0.5,
+          "info": "rápido, alvo único"},
+    "2": {"name": "Canhão", "emoji": "💣", "text": "C", "cost": 50, "range": 2.3, "dmg": 20, "rate": 1.4,
+          "splash": 1.1, "info": "explode e atinge vizinhos"},
+    "3": {"name": "Mago", "emoji": "🔮", "text": "M", "cost": 35, "range": 4.0, "dmg": 10, "rate": 0.9,
+          "info": "maior alcance"},
+    "4": {"name": "Vórtice", "emoji": "🌀", "text": "V", "cost": 40, "range": 2.6, "dmg": 4, "rate": 0.8,
+          "slow": 0.5, "slow_time": 1.6, "slow_area": 1.2, "info": "deixa lento quem está perto"},
 }
-
-START_GOLD = 120
+ENEMIES = {
+    "normal": {"name": "Invasor", "emoji": "👾", "text": "o", "hp": 28, "speed": 1.5, "gold": 4, "dmg": 1},
+    "rapido": {"name": "Rato", "emoji": "🐀", "text": "*", "hp": 15, "speed": 2.6, "gold": 4, "dmg": 1},
+    "tanque": {"name": "Ogro", "emoji": "👹", "text": "@", "hp": 100, "speed": 0.85, "gold": 10, "dmg": 2},
+    "chefe": {"name": "Dragão", "emoji": "🐉", "text": "&", "hp": 520, "speed": 0.6, "gold": 50, "dmg": 5},
+}
+START_GOLD = 100
 START_LIFE = 20
-SPAWN_INTERVAL = 0.6
-HP_GROWTH = 1.18
+SPAWN_INTERVAL = 0.7
+HP_GROWTH = 1.16
+MAX_LEVEL = 3
+STEP = 0.05  # passo maximo da simulacao, para nada atravessar alcance entre quadros
 
-TOWER_COLOR_KEY = {"1": "archer", "2": "cannon", "3": "mage"}
-SELECTOR_WIDTH = 7
-SELECTOR_GAP = 2
+LEVEL_BG = {2: 65, 3: 136}
+TEXT_COLORS = {"1": 51, "2": 226, "3": 201, "4": 39, "normal": 160, "rapido": 124, "tanque": 52, "chefe": 201}
 
-CONTROLS = (
-    "WASD/setas mover  1-3 torre",
-    "Enter constroi  x vende  n onda",
-    "p pausa  h ajuda  q sai",
-)
+GLYPHS = {  # emoji / texto, sempre 2 colunas
+    "spawn": ("🚪", "S "), "base": ("🏰", "B "), "kill": ("💥", "x "), "mark": ("✨", "<>"),
+    "life": ("💗", "V:"), "gold": ("💰", "$:"), "wave": ("🌊", "O:"), "kills": ("💀", "K:"),
+    "trophy": ("🏆", "* "), "party": ("🎉", "! "), "fast": ("⏩", ">>"),
+}
 
-HELP_LINES = (
-    "Mover: setas ou w a s d",
-    "Torre: 1 Arqueiro 2 Canhao 3 Mago",
-    "Construir: Enter ou Espaco",
-    "Toque: move; 2o toque constroi",
-    "x vende (devolve metade)",
-    "n ou toque no rodape: onda",
-    "p pausa   r reinicia (fim)",
-    "q sai (q de novo confirma)",
-    "",
-    "Inimigos: o normal  * rapido",
-    "  @ tanque: tira 2 de vida",
-    "Proteja a base B!",
-)
 
 def read_version():
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "VERSION")
     try:
-        with open(path, encoding="utf-8") as f:
+        with open(os.path.join(APP_DIR, "VERSION"), encoding="utf-8") as f:
             return f.read().strip() or "dev"
     except OSError:
         return "dev"
 
 
-# ---------------------------------------------------------------- logica
-
 def build_path():
-    segs = [
-        (0, 2, 8, 2),
-        (8, 2, 8, 5),
-        (8, 5, 20, 5),
-        (20, 5, 20, 2),
-        (20, 2, 28, 2),
-        (28, 2, 28, 8),
-        (28, 8, 14, 8),
-        (14, 8, 14, 11),
-        (14, 11, 30, 11),
-    ]
     pts = []
-    for i, (x0, y0, x1, y1) in enumerate(segs):
-        if x0 == x1:
-            step = 1 if y1 >= y0 else -1
-            line = [(x0, y) for y in range(y0, y1 + step, step)]
-        else:
-            step = 1 if x1 >= x0 else -1
-            line = [(x, y0) for x in range(x0, x1 + step, step)]
-        if i > 0:
-            line = line[1:]
-        pts.extend(line)
+    for i, (x0, y0, x1, y1) in enumerate(PATH_SEGS):
+        x, y = x0, y0
+        line = [(x, y)]
+        while (x, y) != (x1, y1):
+            x += (x1 > x) - (x1 < x)
+            y += (y1 > y) - (y1 < y)
+            line.append((x, y))
+        pts += line if i == 0 else line[1:]
     return pts
 
 
-class Enemy:
-    def __init__(self, kind, wave_num):
-        base = ENEMY_BASE[kind]
-        scale = HP_GROWTH ** (wave_num - 1)
-        self.kind = kind
-        self.max_hp = base["hp"] * scale
-        self.hp = self.max_hp
-        self.speed = base["speed"]
-        self.gold = int(base["gold"] * (1 + 0.08 * (wave_num - 1)))
-        self.dmg = base["dmg"]
-        self.symbol = base["symbol"]
-        self.progress = 0.0
-        self.alive = True
-        self.reached_base = False
+PATH = build_path()
+PATH_SET = set(PATH)
 
 
-class Tower:
-    def __init__(self, x, y, type_key):
-        self.x = x
-        self.y = y
-        self.type_key = type_key
-        self.last_shot = -999.0
-        self.span = None
-
-
-def enemy_pos(enemy, path):
-    i = int(enemy.progress)
-    if i >= len(path) - 1:
-        return path[-1]
-    frac = enemy.progress - i
-    x0, y0 = path[i]
-    x1, y1 = path[i + 1]
-    return (x0 + (x1 - x0) * frac, y0 + (y1 - y0) * frac)
-
-
-def tower_span(tower, path):
-    # um inimigo entre path[i] e path[i+1] esta a no maximo 1 celula de path[i]
-    reach = TOWER_TYPES[tower.type_key]["range"] + 1
-    idx = [i for i, (x, y) in enumerate(path) if math.hypot(x - tower.x, y - tower.y) <= reach]
-    return (idx[0], idx[-1]) if idx else (0, -1)
-
-
-def make_wave(wave_num):
-    count = 5 + wave_num * 2
-    kinds = []
-    for _ in range(count):
-        roll = random.random()
-        if roll < 0.15 and wave_num > 2:
-            kinds.append("tank")
-        elif roll < 0.35:
-            kinds.append("fast")
-        else:
-            kinds.append("normal")
-    return kinds
-
-
-def update_enemies(enemies, path, dt, state):
-    for e in enemies:
-        if not e.alive:
-            continue
-        e.progress += e.speed * dt
-        if e.progress >= len(path) - 1:
-            e.alive = False
-            e.reached_base = True
-            state["base_hp"] -= e.dmg
-
-
-def update_towers(towers, enemies, path, now, state):
-    ready = [t for t in towers if now - t.last_shot >= TOWER_TYPES[t.type_key]["rate"]]
-    if not ready or not enemies:
-        return
-    alive = sorted((e for e in enemies if e.alive), key=lambda e: e.progress)
-    progress = [e.progress for e in alive]
-    positions = [enemy_pos(e, path) for e in alive]
-    for t in ready:
-        if t.span is None:
-            t.span = tower_span(t, path)
-        lo, hi = t.span
-        cfg = TOWER_TYPES[t.type_key]
-        r2 = cfg["range"] ** 2
-        # do inimigo mais adiantado para tras, apenas na faixa do caminho que a torre alcanca
-        j = bisect.bisect_left(progress, hi + 1) - 1
-        stop = bisect.bisect_left(progress, lo)
-        while j >= stop:
-            e = alive[j]
-            if e.alive:
-                ex, ey = positions[j]
-                if (ex - t.x) ** 2 + (ey - t.y) ** 2 <= r2:
-                    e.hp -= cfg["damage"]
-                    t.last_shot = now
-                    if e.hp <= 0:
-                        e.alive = False
-                        state["gold"] += e.gold
-                        state["kills"] += 1
-                    break
-            j -= 1
-
-
-def try_place_tower(cursor, towers, path_set, state, selected):
-    x, y = cursor
-    if (x, y) in path_set:
-        return "Nao pode construir no caminho!"
-    for t in towers:
-        if t.x == x and t.y == y:
-            return "Ja existe uma torre aqui!"
-    cfg = TOWER_TYPES[selected]
-    if state["gold"] < cfg["cost"]:
-        return f"Ouro insuficiente (${cfg['cost']})"
-    state["gold"] -= cfg["cost"]
-    towers.append(Tower(x, y, selected))
-    return f"{cfg['name']} construida!"
-
-
-def try_sell_tower(cursor, towers, state):
-    x, y = cursor
-    for i, t in enumerate(towers):
-        if t.x == x and t.y == y:
-            refund = TOWER_TYPES[t.type_key]["cost"] // 2
-            state["gold"] += refund
-            towers.pop(i)
-            return f"Torre vendida (+{refund} ouro)"
-    return "Nenhuma torre aqui."
-
-
-def new_game():
-    return {
-        "state": {"gold": START_GOLD, "base_hp": START_LIFE, "wave": 0, "kills": 0},
-        "towers": [],
-        "enemies": [],
-        "wave_queue": [],
-        "spawn_timer": 0.0,
-        "wave_active": False,
-        "game_over": False,
-    }
-
-
-# ------------------------------------------------------------- interface
-
-def init_colors():
-    if not curses.has_colors():
+def load_config():
+    try:
+        with open(CONFIG_FILE, encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
         return {}
-    curses.start_color()
-    try:
-        curses.use_default_colors()
-        bg = -1
-    except curses.error:
-        bg = curses.COLOR_BLACK
-    pairs = {
-        "grass": (curses.COLOR_GREEN, bg),
-        "path": (curses.COLOR_WHITE, bg),
-        "archer": (curses.COLOR_CYAN, bg),
-        "cannon": (curses.COLOR_YELLOW, bg),
-        "mage": (curses.COLOR_MAGENTA, bg),
-        "normal": (curses.COLOR_RED, bg),
-        "fast": (curses.COLOR_YELLOW, bg),
-        "tank": (curses.COLOR_RED, bg),
-        "base": (curses.COLOR_BLUE, bg),
-        "spawn": (curses.COLOR_GREEN, bg),
-        "status": (curses.COLOR_WHITE, bg),
-    }
-    attrs = {}
-    for idx, (name, (fg, bgc)) in enumerate(pairs.items(), start=1):
-        try:
-            curses.init_pair(idx, fg, bgc)
-            attrs[name] = curses.color_pair(idx)
-        except curses.error:
-            attrs[name] = 0
-    return attrs
 
 
-def safe_addstr(win, y, x, text, attr=0):
-    max_y, max_x = win.getmaxyx()
-    if y < 0 or y >= max_y or x < 0 or x >= max_x:
-        return
-    text = text[: max_x - x]
-    if not text:
-        return
+def save_config(cfg):
     try:
-        win.addstr(y, x, text, attr)
-    except curses.error:
-        # escrever na ultima celula da tela gera erro, mas o texto e desenhado
+        os.makedirs(CONFIG_DIR, exist_ok=True)
+        tmp = CONFIG_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(cfg, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, CONFIG_FILE)
+    except OSError:
         pass
 
 
-def screen_too_small(stdscr):
-    max_y, max_x = stdscr.getmaxyx()
-    return max_x < MIN_W or max_y < MIN_H
+# ================================================================ logica
+
+class Tower:
+    def __init__(self, x, y, key):
+        self.x, self.y, self.key = x, y, key
+        self.level = 1
+        self.spent = TOWERS[key]["cost"]
+        self.last = -999.0
+        self.span = None
+
+    @property
+    def cfg(self):
+        return TOWERS[self.key]
+
+    @property
+    def damage(self):
+        return self.cfg["dmg"] * (1 + 0.6 * (self.level - 1))
+
+    @property
+    def range(self):
+        return self.cfg["range"] + 0.4 * (self.level - 1)
+
+    @property
+    def rate(self):
+        return self.cfg["rate"]
+
+    @property
+    def upgrade_cost(self):
+        return None if self.level >= MAX_LEVEL else int(self.cfg["cost"] * 0.7 * self.level)
+
+    @property
+    def refund(self):
+        return self.spent // 2
 
 
-def compute_layout(height):
-    top = 3 if height > MIN_H else 2
-    status = top + GRID_H
-    controls = status + 2 if height >= status + 2 + len(CONTROLS) else None
-    return {"top": top, "status": status, "controls": controls}
+class Enemy:
+    def __init__(self, kind, wave, hp_scale=1.0):
+        base = ENEMIES[kind]
+        self.kind = kind
+        self.max_hp = base["hp"] * (HP_GROWTH ** (wave - 1)) * hp_scale
+        self.hp = self.max_hp
+        self.speed = base["speed"]
+        self.gold = int(base["gold"] * (1 + 0.02 * (wave - 1)))
+        self.dmg = base["dmg"]
+        self.progress = 0.0
+        self.alive = True
+        self.leaked = False
+        self.slow_until = -1.0
+        self.slow_factor = 1.0
+        self.hit_until = -1.0
 
 
-def hud_text(state, width):
-    hp, gold, wave, kills = max(0, state["base_hp"]), state["gold"], state["wave"], state["kills"]
-    full = f" Vida {hp} Ouro {gold} Onda {wave} Abates {kills}"
-    if len(full) <= width:
-        return full
-    return f" Vida {hp} ${gold} Onda {wave} Abt {kills}"
+def enemy_pos(e):
+    i = int(e.progress)
+    if i >= len(PATH) - 1:
+        return PATH[-1]
+    f = e.progress - i
+    (x0, y0), (x1, y1) = PATH[i], PATH[i + 1]
+    return x0 + (x1 - x0) * f, y0 + (y1 - y0) * f
 
 
-def draw_too_small(stdscr):
-    stdscr.erase()
-    max_y, max_x = stdscr.getmaxyx()
-    lines = (
-        "Tela pequena demais",
-        f"atual {max_x}x{max_y}",
-        f"minimo {MIN_W}x{MIN_H}",
-        "Esconda o teclado ou",
-        "diminua a fonte (pinca)",
-        "q sai",
-    )
-    for i, line in enumerate(lines):
-        safe_addstr(stdscr, i, 0, line, curses.A_BOLD if i == 0 else 0)
-    stdscr.refresh()
+def tower_span(t):
+    # um inimigo entre as casas i e i+1 fica a no maximo 1 casa de PATH[i]
+    reach = t.range + 1
+    idx = [i for i, (x, y) in enumerate(PATH) if math.hypot(x - t.x, y - t.y) <= reach]
+    return (idx[0], idx[-1]) if idx else (0, -1)
 
 
-def enable_mouse():
-    try:
-        avail, _ = curses.mousemask(curses.BUTTON1_PRESSED | curses.BUTTON1_CLICKED)
-        curses.mouseinterval(0)
-        return bool(avail)
-    except curses.error:
-        return False
+def make_wave(n, rng):
+    kinds = []
+    for _ in range(min(4 + 2 * n, 60)):
+        r = rng.random()
+        if r < 0.15 and n >= 3:
+            kinds.append("tanque")
+        elif r < 0.40 and n >= 2:
+            kinds.append("rapido")
+        else:
+            kinds.append("normal")
+    if n % 5 == 0:
+        kinds += ["chefe"] * (n // 10 + 1)
+    return kinds
 
 
-class Jogo:
-    def __init__(self, stdscr, touch=True):
-        self.scr = stdscr
-        self.colors = init_colors()
-        self.path = build_path()
-        self.path_set = set(self.path)
-        self.touch = touch and enable_mouse()
-        self.version = read_version()
-        self.selected = "1"
-        self.cursor = [GRID_W // 2, GRID_H // 2]
-        while tuple(self.cursor) in self.path_set:
-            self.cursor[0] += 1
-        self.help = False
-        self.quit_confirm = False
-        self.too_small = False
-        self.done = False
-        self.message = ""
-        self.message_timer = 0.0
-        self.layout = compute_layout(self.scr.getmaxyx()[0])
-        self.background = self._build_background()
-        self.reset()
+class Game:
+    def __init__(self, seed=None, tutorial=False):
+        self.rng = random.Random(seed)
+        self.tutorial = tutorial
+        self.gold, self.life, self.wave, self.kills = START_GOLD, START_LIFE, 0, 0
+        self.towers = {}
+        self.enemies, self.queue = [], []
+        self.spawn_timer = 0.0
+        self.wave_active = False
+        self.over = False
+        self.time = 0.0
+        self.speed = 1
+        self.effects = []  # (x, y, ate_quando)
 
-    def reset(self):
-        self.game = new_game()
-        self.paused = False
-        self.clock = 0.0
+    # ------------------------------------------------------ acoes
+    def can_build(self, x, y):
+        return 0 <= x < W and 0 <= y < H and (x, y) not in PATH_SET and (x, y) not in self.towers
 
-    def _build_background(self):
-        g, c = self.colors, curses
-        grid = [[(".", g.get("grass", 0)) for _ in range(GRID_W)] for _ in range(GRID_H)]
-        for (x, y) in self.path:
-            grid[y][x] = ("#", g.get("path", 0))
-        sx, sy = self.path[0]
-        bx, by = self.path[-1]
-        grid[sy][sx] = ("S", g.get("spawn", 0) | c.A_BOLD)
-        grid[by][bx] = ("B", g.get("base", 0) | c.A_BOLD)
-        return grid
+    def build(self, x, y, key):
+        if (x, y) in PATH_SET:
+            return False, "Não dá para construir na trilha"
+        if (x, y) in self.towers:
+            return False, "Já tem torre aqui"
+        cfg = TOWERS[key]
+        if self.gold < cfg["cost"]:
+            return False, f"Falta ouro: {cfg['name']} custa {cfg['cost']}"
+        self.gold -= cfg["cost"]
+        self.towers[(x, y)] = Tower(x, y, key)
+        return True, f"{cfg['name']} construído"
 
-    # ----------------------------------------------------------- acoes
+    def upgrade(self, x, y):
+        t = self.towers.get((x, y))
+        if t is None:
+            return False, "Nenhuma torre aqui"
+        cost = t.upgrade_cost
+        if cost is None:
+            return False, f"{t.cfg['name']} já está no nível máximo"
+        if self.gold < cost:
+            return False, f"Falta ouro: melhorar custa {cost}"
+        self.gold -= cost
+        t.spent += cost
+        t.level += 1
+        t.span = None
+        return True, f"{t.cfg['name']} agora é nível {t.level}"
 
-    def say(self, text):
-        self.message = text
-        self.message_timer = 1.5
-
-    def running(self):
-        return not (self.paused or self.quit_confirm or self.help or self.too_small or self.game["game_over"])
-
-    def busy(self):
-        moving = self.game["wave_active"] or self.game["enemies"]
-        return (self.running() and moving) or self.message_timer > 0
-
-    def build(self):
-        if self.game["game_over"]:
-            return
-        if self.paused:
-            return
-        self.say(try_place_tower(self.cursor, self.game["towers"], self.path_set, self.game["state"], self.selected))
-
-    def sell(self):
-        if self.game["game_over"]:
-            return
-        if self.paused:
-            return
-        self.say(try_sell_tower(self.cursor, self.game["towers"], self.game["state"]))
+    def sell(self, x, y):
+        t = self.towers.pop((x, y), None)
+        if t is None:
+            return False, "Nenhuma torre aqui"
+        self.gold += t.refund
+        return True, f"{t.cfg['name']} vendido (+{t.refund})"
 
     def next_wave(self):
+        if self.over:
+            return False, ""
+        if self.wave_active or self.enemies:
+            return False, "Aguarde o fim da onda"
+        self.wave += 1
+        self.queue = ["normal"] * 4 if self.tutorial else make_wave(self.wave, self.rng)
+        self.wave_active = True
+        self.spawn_timer = 0.0
+        return True, f"Onda {self.wave}!"
+
+    # ------------------------------------------------------ tempo
+    def update(self, dt):
+        dt *= self.speed
+        while dt > 1e-9 and not self.over:
+            step = min(dt, STEP)
+            self._step(step)
+            dt -= step
+
+    def _step(self, dt):
+        self.time += dt
+        if self.wave_active:
+            self.spawn_timer -= dt
+            if self.spawn_timer <= 0 and self.queue:
+                scale = 0.6 if self.tutorial else 1.0
+                self.enemies.append(Enemy(self.queue.pop(0), self.wave, scale))
+                self.spawn_timer = SPAWN_INTERVAL
+        end = len(PATH) - 1
+        for e in self.enemies:
+            if not e.alive:
+                continue
+            f = e.slow_factor if self.time < e.slow_until else 1.0
+            e.progress += e.speed * f * dt
+            if e.progress >= end:
+                e.alive = False
+                e.leaked = True
+                self.life -= e.dmg
+        self._fire()
+        self.enemies = [e for e in self.enemies if e.alive]
+        if self.effects:
+            self.effects = [fx for fx in self.effects if fx[2] > self.time]
+        if self.wave_active and not self.queue and not self.enemies:
+            self.wave_active = False
+            self.gold += 3 + self.wave
+        if self.life <= 0:
+            self.life = 0
+            self.over = True
+
+    def _fire(self):
+        ready = [t for t in self.towers.values() if self.time - t.last >= t.rate]
+        if not ready or not self.enemies:
+            return
+        alive = sorted((e for e in self.enemies if e.alive), key=lambda e: e.progress)
+        progress = [e.progress for e in alive]
+        positions = [enemy_pos(e) for e in alive]
+        for t in ready:
+            if t.span is None:
+                t.span = tower_span(t)
+            lo, hi = t.span
+            r2 = t.range ** 2
+            j = bisect.bisect_left(progress, hi + 1) - 1
+            stop = bisect.bisect_left(progress, lo)
+            while j >= stop:
+                e = alive[j]
+                if e.alive:
+                    ex, ey = positions[j]
+                    if (ex - t.x) ** 2 + (ey - t.y) ** 2 <= r2:
+                        self._hit(t, e, ex, ey, alive, positions)
+                        t.last = self.time
+                        break
+                j -= 1
+
+    def _hit(self, t, target, tx, ty, alive, positions):
+        cfg = t.cfg
+        dmg = t.damage
+        hits = [(target, dmg)]
+        if "splash" in cfg:
+            s2 = cfg["splash"] ** 2
+            for e, (ex, ey) in zip(alive, positions):
+                if e is not target and e.alive and (ex - tx) ** 2 + (ey - ty) ** 2 <= s2:
+                    hits.append((e, dmg * 0.5))
+        if "slow" in cfg:
+            a2 = cfg["slow_area"] ** 2
+            for e, (ex, ey) in zip(alive, positions):
+                if e.alive and (ex - tx) ** 2 + (ey - ty) ** 2 <= a2:
+                    e.slow_until = self.time + cfg["slow_time"]
+                    e.slow_factor = max(cfg["slow"], 0.8) if e.kind == "chefe" else cfg["slow"]
+        for e, d in hits:
+            e.hp -= d
+            e.hit_until = self.time + 0.08
+            if e.hp <= 0 and e.alive:
+                e.alive = False
+                self.gold += e.gold
+                self.kills += 1
+                x, y = enemy_pos(e)
+                self.effects.append((int(round(x)), int(round(y)), self.time + 0.3))
+
+
+# ================================================================ tutorial
+
+TUTORIAL_MAGE = (12, 3)
+TUTORIAL_ARCHER = (4, 5)
+
+
+def _tut_steps():
+    return [
+        {"text": ["Os monstros saem da {spawn} e seguem", "a trilha de terra até o {base}.",
+                  "Não deixe nenhum chegar lá!"],
+         "marks": [PATH[0], PATH[-1]], "wait": None},
+        {"text": ["Escolha o Mago: toque em 3{t3}", "lá em cima (ou aperte 3)."],
+         "marks": [], "wait": lambda a: a.selected == "3"},
+        {"text": ["Toque na casa {mark} para levar o", "cursor até ela. Toque de novo", "para construir."],
+         "marks": [TUTORIAL_MAGE], "wait": lambda a: TUTORIAL_MAGE in a.game.towers},
+        {"text": ["O verde claro é o alcance do Mago.", "Chame a onda: toque na barra", "verde aqui embaixo (ou n)."],
+         "marks": [], "wait": lambda a: a.game.wave >= 1},
+        {"text": ["Cada monstro derrotado dá {gold}.", "Se algum chegar ao {base}, você", "perde {life}. Espere a onda acabar."],
+         "marks": [], "wait": lambda a: a.game.wave >= 1 and not a.game.wave_active},
+        {"text": ["Agora o Arqueiro: toque em 1{t1}", "e construa na casa {mark}."],
+         "marks": [TUTORIAL_ARCHER], "wait": lambda a: TUTORIAL_ARCHER in a.game.towers,
+         "setup": lambda a: setattr(a.game, "gold", max(a.game.gold, 20))},
+        {"text": ["Toque 2 vezes no Mago para", "melhorar (ou cursor nele + u).", "Nível maior = mais dano e alcance."],
+         "marks": [TUTORIAL_MAGE], "wait": lambda a: a.game.towers.get(TUTORIAL_MAGE) and a.game.towers[TUTORIAL_MAGE].level >= 2,
+         "setup": lambda a: setattr(a.game, "gold", max(a.game.gold, 28))},
+        {"text": ["Mais: x vende, f acelera {fast},", "p ou toque no topo: pausa.", "4{t4} Vórtice deixa monstros lentos."],
+         "marks": [], "wait": None},
+        {"text": ["Pronto {party} Agora é pra valer:", "as ondas crescem e a cada 5", "vem um chefe {boss}. Boa sorte!"],
+         "marks": [], "wait": None},
+    ]
+
+
+# ================================================================ tela
+
+def cell_width(ch):
+    if unicodedata.combining(ch) or ch in "️‍":
+        return 0
+    return 2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1
+
+
+def text_width(s):
+    return sum(cell_width(c) for c in s)
+
+
+def clip(s, cells):
+    out, used = [], 0
+    for c in s:
+        w = cell_width(c)
+        if used + w > cells:
+            break
+        out.append(c)
+        used += w
+    return "".join(out)
+
+
+BASIC = {  # equivalente em 8 cores para terminais sem 256 cores
+    16: 0, 22: 2, 28: 2, 64: 2, 70: 2, 114: 2, 137: 3, 143: 3, 179: 3, 101: 7, 196: 1, 208: 1,
+    220: 3, 226: 3, 229: 7, 231: 7, 235: 0, 236: 0, 238: 0, 240: 0, 244: 7, 250: 7, 255: 7, -1: -1,
+}
+
+
+class Palette:
+    def __init__(self):
+        self.pairs = {}
+        self.ok = curses.has_colors()
+        if self.ok:
+            curses.start_color()
+            try:
+                curses.use_default_colors()
+            except curses.error:
+                pass
+            self.full = curses.COLORS >= 256
+        self.next_id = 1
+
+    def __call__(self, fg=-1, bg=-1, bold=False):
+        if not self.ok:
+            return curses.A_BOLD if bold else 0
+        if not self.full:
+            fg, bg = BASIC.get(fg, 7), BASIC.get(bg, 0)
+        key = (fg, bg)
+        if key not in self.pairs:
+            if self.next_id >= curses.COLOR_PAIRS:
+                return curses.A_BOLD if bold else 0
+            try:
+                curses.init_pair(self.next_id, fg, bg)
+            except curses.error:
+                return 0
+            self.pairs[key] = curses.color_pair(self.next_id)
+            self.next_id += 1
+        return self.pairs[key] | (curses.A_BOLD if bold else 0)
+
+
+def put(win, y, x, text, attr=0):
+    h, w = win.getmaxyx()
+    if y < 0 or y >= h or x < 0 or x >= w:
+        return
+    text = clip(text, w - x)
+    if text:
+        try:
+            win.addstr(y, x, text, attr)
+        except curses.error:
+            pass  # a ultima celula da tela gera erro, mas o texto e desenhado
+
+
+MENU_ITEMS = [("play", "Jogar"), ("tutorial", "Tutorial"), ("help", "Como jogar"),
+              ("options", "Opções"), ("quit", "Sair")]
+
+
+class App:
+    def __init__(self, scr, emoji=None, touch=None, start=None):
+        self.scr = scr
+        self.version = read_version()
+        self.cfg = load_config()
+        self.emoji = self.cfg.get("emoji", True) if emoji is None else emoji
+        self.touch = self.cfg.get("toque", True) if touch is None else touch
+        self.pal = None
+        self.screen = "menu"
+        self.menu_i = 0
+        self.opt_i = 0
+        self.help_scroll = 0
+        self.game = None
+        self.tut = None
+        self.tut_i = 0
+        self.overlay = None  # "pause" | "over"
+        self.overlay_i = 0
+        self.new_record = False
+        self.selected = "1"
+        self.cursor = [8, 5]
+        self.cursor_moved = False
+        self.message, self.message_until = "", 0.0
+        self.hits = []
+        self.done = False
+        self.anim = 0.0
+        self.too_small = False
+        self._init_curses()
+        if start == "tutorial":
+            self.start_game(tutorial=True)
+        elif start == "play":
+            self.start_game()
+
+    def _init_curses(self):
+        curses.curs_set(0)
+        self.scr.keypad(True)
+        self.pal = Palette()
+        self.apply_touch()
+
+    def apply_touch(self):
+        try:
+            if self.touch:
+                # RELEASED na mascara: um evento de soltar descartado pelo ncurses
+                # deixa o getch() bloqueado ate a proxima tecla, ignorando o timeout
+                curses.mousemask(curses.BUTTON1_PRESSED | curses.BUTTON1_RELEASED | curses.BUTTON1_CLICKED)
+                curses.mouseinterval(0)
+            else:
+                curses.mousemask(0)
+        except curses.error:
+            pass
+
+    def g(self, name):
+        return GLYPHS[name][0 if self.emoji else 1]
+
+    def tower_glyph(self, key):
+        return TOWERS[key]["emoji"] if self.emoji else TOWERS[key]["text"] + " "
+
+    def enemy_glyph(self, kind):
+        return ENEMIES[kind]["emoji"] if self.emoji else ENEMIES[kind]["text"] + " "
+
+    def say(self, text, secs=2.0):
+        self.message, self.message_until = text, time.monotonic() + secs
+
+    # ------------------------------------------------------ estados
+    def start_game(self, tutorial=False):
+        self.game = Game(tutorial=tutorial)
+        self.overlay = None
+        self.new_record = False
+        self.selected = "1"
+        self.cursor = [8, 5]
+        self.cursor_moved = False
+        self.message = ""
+        self.screen = "game"
+        self.tut = _tut_steps() if tutorial else None
+        self.tut_i = 0
+
+    def tut_step(self):
+        return self.tut[self.tut_i] if self.tut and self.tut_i < len(self.tut) else None
+
+    def tut_advance(self):
+        self.tut_i += 1
+        step = self.tut_step()
+        if step is None:
+            self.cfg["tutorial_visto"] = True
+            save_config(self.cfg)
+            self.start_game()
+            self.say("Boa sorte! Chame a onda quando quiser", 3)
+        elif "setup" in step:
+            step["setup"](self)
+
+    def check_tutorial(self):
+        step = self.tut_step()
+        if step and step["wait"] and step["wait"](self):
+            self.tut_advance()
+
+    def finish_game(self):
         g = self.game
-        if g["game_over"]:
-            return
-        if self.paused:
-            return
-        if g["wave_active"] or g["enemies"]:
-            self.say("Aguarde o fim da onda")
-            return
-        g["state"]["wave"] += 1
-        g["wave_queue"] = make_wave(g["state"]["wave"])
-        g["wave_active"] = True
-        g["spawn_timer"] = 0.0
+        rec = self.cfg.get("recorde", {"onda": 0, "abates": 0})
+        if not g.tutorial and (g.wave, g.kills) > (rec.get("onda", 0), rec.get("abates", 0)):
+            self.cfg["recorde"] = {"onda": g.wave, "abates": g.kills}
+            save_config(self.cfg)
+            self.new_record = True
+        self.overlay = "over"
+        self.overlay_i = 0
 
-    def restart(self):
-        self.reset()
-        self.say("Nova partida!")
-
-    def request_quit(self):
-        if self.game["game_over"] or self.game["state"]["wave"] == 0:
-            self.done = True
+    # ------------------------------------------------------ acoes no mapa
+    def act_on_cursor(self):
+        g = self.game
+        x, y = self.cursor
+        if (x, y) in g.towers:
+            ok, msg = g.upgrade(x, y)
         else:
-            self.quit_confirm = True
+            ok, msg = g.build(x, y, self.selected)
+        self.say(msg)
 
-    # ---------------------------------------------------------- entrada
+    def tap_cell(self, x, y):
+        if [x, y] == self.cursor:
+            self.act_on_cursor()
+        else:
+            self.cursor = [x, y]
+            self.cursor_moved = True
 
-    def key(self, k):
+    def move_cursor(self, k, ch):
+        dx = (k == curses.KEY_RIGHT or ch in ("d", "D")) - (k == curses.KEY_LEFT or ch in ("a", "A"))
+        dy = (k == curses.KEY_DOWN or ch in ("s", "S")) - (k == curses.KEY_UP or ch in ("w", "W"))
+        self.cursor = [min(W - 1, max(0, self.cursor[0] + dx)), min(H - 1, max(0, self.cursor[1] + dy))]
+        self.cursor_moved = True
+
+    def open_pause(self):
+        self.overlay, self.overlay_i = "pause", 0
+
+    def call_wave(self):
+        g = self.game
+        if g.tutorial and self.tut_step() and self.tut_i < 3:
+            self.say("Siga o tutorial primeiro")
+            return
+        ok, msg = g.next_wave()
+        if msg:
+            self.say(msg, 1.5)
+
+    # ------------------------------------------------------ entrada
+    def on_key(self, k):
         if k == curses.KEY_RESIZE:
             return
         if k == curses.KEY_MOUSE:
-            self.mouse()
+            self.on_mouse()
             return
         ch = chr(k) if 0 <= k < 256 else ""
-        is_quit = ch in ("q", "Q") or k == 27
-
-        if self.quit_confirm:
-            # qualquer tecla que nao seja q/Esc cancela: evita sair ao apertar "s" para descer
-            self.done = is_quit
-            self.quit_confirm = False
-            return
         if self.too_small:
-            self.done = is_quit
+            if ch in ("q", "Q"):
+                self.done = True
             return
-        if self.help:
-            self.help = False
-            return
-        if is_quit:
-            self.request_quit()
-        elif ch in ("h", "H", "?"):
-            self.help = True
-        elif ch in ("r", "R") and self.game["game_over"]:
-            self.restart()
-        elif ch in ("1", "2", "3"):
-            self.selected = ch
-        elif ch in ("p", "P"):
-            if not self.game["game_over"]:
-                self.paused = not self.paused
-        elif k in (curses.KEY_UP, ord("w"), ord("W")):
-            self.cursor[1] = max(0, self.cursor[1] - 1)
-        elif k in (curses.KEY_DOWN, ord("s"), ord("S")):
-            self.cursor[1] = min(GRID_H - 1, self.cursor[1] + 1)
-        elif k in (curses.KEY_LEFT, ord("a"), ord("A")):
-            self.cursor[0] = max(0, self.cursor[0] - 1)
-        elif k in (curses.KEY_RIGHT, ord("d"), ord("D")):
-            self.cursor[0] = min(GRID_W - 1, self.cursor[0] + 1)
-        elif k in (10, 13, curses.KEY_ENTER, ord(" ")):
-            self.build()
-        elif ch in ("x", "X"):
-            self.sell()
-        elif ch in ("n", "N"):
-            self.next_wave()
+        handler = getattr(self, "key_" + (self.overlay or self.screen))
+        handler(k, ch)
 
-    def mouse(self):
+    def _nav(self, k, ch, i, n):
+        if k in (curses.KEY_UP,) or ch in ("w", "W", "k"):
+            return (i - 1) % n
+        if k in (curses.KEY_DOWN,) or ch in ("s", "S", "j"):
+            return (i + 1) % n
+        return i
+
+    def key_menu(self, k, ch):
+        self.menu_i = self._nav(k, ch, self.menu_i, len(MENU_ITEMS))
+        if k in (10, 13, curses.KEY_ENTER) or ch == " ":
+            self.menu_choose(self.menu_i)
+        elif ch in ("q", "Q") or k == 27:
+            self.done = True
+
+    def menu_choose(self, i):
+        action = MENU_ITEMS[i][0]
+        if action == "play":
+            self.start_game()
+        elif action == "tutorial":
+            self.start_game(tutorial=True)
+        elif action == "help":
+            self.screen, self.help_scroll = "help", 0
+        elif action == "options":
+            self.screen, self.opt_i = "options", 0
+        else:
+            self.done = True
+
+    def options(self):
+        rec = self.cfg.get("recorde")
+        return [
+            ("emoji", f"Emojis: {'SIM' if self.emoji else 'NÃO (letras)'}"),
+            ("touch", f"Toque na tela: {'SIM' if self.touch else 'NÃO'}"),
+            ("reset", "Zerar recorde" + (f" (onda {rec['onda']})" if rec else "")),
+            ("back", "Voltar"),
+        ]
+
+    def key_options(self, k, ch):
+        opts = self.options()
+        self.opt_i = self._nav(k, ch, self.opt_i, len(opts))
+        if k in (10, 13, curses.KEY_ENTER) or ch == " ":
+            self.option_choose(self.opt_i)
+        elif ch in ("q", "Q") or k in (27, curses.KEY_BACKSPACE, 127):
+            self.screen = "menu"
+
+    def option_choose(self, i):
+        action = self.options()[i][0]
+        if action == "emoji":
+            self.emoji = not self.emoji
+            self.cfg["emoji"] = self.emoji
+        elif action == "touch":
+            self.touch = not self.touch
+            self.cfg["toque"] = self.touch
+            self.apply_touch()
+        elif action == "reset":
+            self.cfg.pop("recorde", None)
+            self.say("Recorde zerado")
+        else:
+            self.screen = "menu"
+            return
+        save_config(self.cfg)
+
+    def key_help(self, k, ch):
+        if k == curses.KEY_DOWN or ch in ("s", "j"):
+            self.help_scroll += 1
+        elif k == curses.KEY_UP or ch in ("w", "k"):
+            self.help_scroll = max(0, self.help_scroll - 1)
+        else:
+            self.screen = "menu"
+
+    def key_game(self, k, ch):
+        g = self.game
+        step = self.tut_step()
+        if step and step["wait"] is None and (k in (10, 13, curses.KEY_ENTER) or ch == " "):
+            self.tut_advance()
+            return
+        if ch in ("q", "Q", "p", "P") or k == 27:
+            self.open_pause()
+        elif ch in ("h", "H", "?"):
+            self.screen, self.help_scroll = "help_game", 0
+        elif ch in ("1", "2", "3", "4"):
+            self.selected = ch
+        elif k in (curses.KEY_UP, curses.KEY_DOWN, curses.KEY_LEFT, curses.KEY_RIGHT) or ch in "wWaAsSdD" and ch:
+            self.move_cursor(k, ch)
+        elif k in (10, 13, curses.KEY_ENTER) or ch == " ":
+            self.act_on_cursor()
+        elif ch in ("u", "U"):
+            ok, msg = g.upgrade(*self.cursor)
+            self.say(msg)
+        elif ch in ("x", "X"):
+            ok, msg = g.sell(*self.cursor)
+            self.say(msg)
+        elif ch in ("n", "N"):
+            self.call_wave()
+        elif ch in ("f", "F"):
+            g.speed = 2 if g.speed == 1 else 1
+            self.say(f"Velocidade {g.speed}x", 1.2)
+
+    def key_help_game(self, k, ch):
+        if k == curses.KEY_DOWN or ch in ("s", "j"):
+            self.help_scroll += 1
+        elif k == curses.KEY_UP or ch in ("w", "k"):
+            self.help_scroll = max(0, self.help_scroll - 1)
+        else:
+            self.screen = "game"
+
+    PAUSE_ITEMS = [("resume", "Continuar"), ("restart", "Reiniciar partida"), ("menu", "Menu principal")]
+    OVER_ITEMS = [("restart", "Jogar de novo"), ("menu", "Menu principal")]
+
+    def overlay_items(self):
+        return self.PAUSE_ITEMS if self.overlay == "pause" else self.OVER_ITEMS
+
+    def key_pause(self, k, ch):
+        items = self.overlay_items()
+        self.overlay_i = self._nav(k, ch, self.overlay_i, len(items))
+        if k in (10, 13, curses.KEY_ENTER) or ch == " ":
+            self.overlay_choose(self.overlay_i)
+        elif ch in ("p", "P") or k == 27:
+            self.overlay = None
+        elif ch in ("q", "Q"):
+            self.overlay_choose(len(items) - 1)
+
+    key_over = key_pause
+
+    def overlay_choose(self, i):
+        action = self.overlay_items()[i][0]
+        tutorial = self.game.tutorial if self.game else False
+        if action == "resume":
+            self.overlay = None
+        elif action == "restart":
+            self.start_game(tutorial=tutorial)
+        else:
+            self.overlay = None
+            self.screen = "menu"
+            self.game = None
+
+    def on_mouse(self):
         try:
             _, mx, my, _, bstate = curses.getmouse()
         except curses.error:
             return
         if not bstate & (curses.BUTTON1_PRESSED | curses.BUTTON1_CLICKED):
             return
-        if self.quit_confirm:
-            self.quit_confirm = False
-            return
         if self.too_small:
             return
-        if self.help:
-            self.help = False
-            return
-        top = self.layout["top"]
-        if top <= my < top + GRID_H and 0 <= mx < GRID_W:
-            cell = [mx, my - top]
-            if cell == self.cursor:
-                self.build()
-            else:
-                self.cursor = cell
-        elif my == 1:
-            slot = mx // (SELECTOR_WIDTH + SELECTOR_GAP)
-            if slot < 3 and mx % (SELECTOR_WIDTH + SELECTOR_GAP) < SELECTOR_WIDTH:
-                self.selected = "123"[slot]
-        elif my == self.layout["status"]:
-            if self.game["game_over"]:
-                self.restart()
-            else:
-                self.next_wave()
+        for (y0, x0, y1, x1, action) in reversed(self.hits):
+            if y0 <= my <= y1 and x0 <= mx <= x1:
+                action()
+                return
 
-    # ------------------------------------------------------------ tempo
-
-    def tick(self, dt):
+    # ------------------------------------------------------ desenho
+    def busy(self):
+        if self.message and time.monotonic() < self.message_until:
+            return True
         g = self.game
-        state = g["state"]
-        if self.running():
-            self.clock += dt
-            if g["wave_active"]:
-                g["spawn_timer"] -= dt
-                if g["spawn_timer"] <= 0 and g["wave_queue"]:
-                    g["enemies"].append(Enemy(g["wave_queue"].pop(0), state["wave"]))
-                    g["spawn_timer"] = SPAWN_INTERVAL
-            update_enemies(g["enemies"], self.path, dt, state)
-            update_towers(g["towers"], g["enemies"], self.path, self.clock, state)
-            g["enemies"] = [e for e in g["enemies"] if e.alive]
-            if g["wave_active"] and not g["wave_queue"] and not g["enemies"]:
-                g["wave_active"] = False
-            if state["base_hp"] <= 0:
-                g["game_over"] = True
-        if self.message_timer > 0:
-            self.message_timer -= dt
-            if self.message_timer <= 0:
-                self.message = ""
-
-    # ----------------------------------------------------------- desenho
-
-    def status_line(self):
-        g, state = self.game, self.game["state"]
-        strong = curses.A_BOLD | curses.A_REVERSE
-        if self.quit_confirm:
-            return "Sair? q = sim, outra tecla = nao", strong
-        if g["game_over"]:
-            return f"Base caiu na onda {state['wave']}! r=reinicia", strong
-        if self.paused:
-            return "PAUSADO - p continua", strong
-        if self.message:
-            return self.message, curses.A_BOLD
-        if not g["wave_active"] and not g["enemies"]:
-            return "n ou toque aqui: proxima onda", 0
-        return "", 0
+        if self.screen == "game" and g and not self.overlay:
+            return g.wave_active or bool(g.enemies) or bool(g.effects) or self.tut_step() is not None
+        return False
 
     def render(self):
         scr = self.scr
-        if self.too_small:
-            draw_too_small(scr)
-            return
-        height, width = scr.getmaxyx()
-        self.layout = lay = compute_layout(height)
         scr.erase()
-        c = self.colors
-
-        safe_addstr(scr, 0, 0, hud_text(self.game["state"], width).ljust(min(width, 40)),
-                    c.get("status", 0) | curses.A_REVERSE)
-
-        col = 0
-        for k in ("1", "2", "3"):
-            cfg = TOWER_TYPES[k]
-            label = f"{k}:{cfg['symbol']} ${cfg['cost']}".ljust(SELECTOR_WIDTH)
-            attr = c.get(TOWER_COLOR_KEY[k], 0)
-            if k == self.selected:
-                attr |= curses.A_REVERSE | curses.A_BOLD
-            safe_addstr(scr, 1, col, label, attr)
-            col += SELECTOR_WIDTH + SELECTOR_GAP
-        name = TOWER_TYPES[self.selected]["name"]
-        if col + len(name) <= width:
-            safe_addstr(scr, 1, col, name, curses.A_BOLD)
-
-        if self.help:
-            self._draw_help(lay["top"])
-        else:
-            self._draw_grid(lay["top"])
-
-        text, attr = self.status_line()
-        safe_addstr(scr, lay["status"], 0, text, attr)
-        if lay["controls"] is not None:
-            for i, line in enumerate(CONTROLS):
-                safe_addstr(scr, lay["controls"] + i, 0, line)
+        self.hits = []
+        h, w = scr.getmaxyx()
+        self.too_small = w < MIN_W or h < MIN_H
+        if self.too_small:
+            lines = ["Tela pequena demais", f"atual {w}x{h}", f"mínimo {MIN_W}x{MIN_H}",
+                     "Esconda o teclado ou", "diminua a fonte (pinça)", "q sai"]
+            for i, line in enumerate(lines):
+                put(scr, i, 0, line, curses.A_BOLD if i == 0 else 0)
+            scr.refresh()
+            return
+        getattr(self, "draw_" + self.screen)(h, w)
+        if self.overlay:
+            self.hits = []  # com a janela aberta, so os botoes dela respondem ao toque
+            self.draw_overlay(h, w)
         scr.refresh()
 
-    def _draw_grid(self, top):
-        c = self.colors
-        cells = [row[:] for row in self.background]
-        for t in self.game["towers"]:
-            cells[t.y][t.x] = (TOWER_TYPES[t.type_key]["symbol"],
-                               c.get(TOWER_COLOR_KEY[t.type_key], 0) | curses.A_BOLD)
-        for e in self.game["enemies"]:
-            if e.alive:
-                ex, ey = enemy_pos(e, self.path)
-                ix = max(0, min(GRID_W - 1, int(round(ex))))
-                iy = max(0, min(GRID_H - 1, int(round(ey))))
-                cells[iy][ix] = (e.symbol, c.get(e.kind, 0) | curses.A_BOLD)
+    def center(self, y, text, attr=0, w=None):
+        w = w or min(self.scr.getmaxyx()[1], MIN_W)
+        x = max(0, (w - text_width(text)) // 2)
+        put(self.scr, y, x, text, attr)
+        return x
+
+    def button(self, y, x, width, label, attr, action):
+        put(self.scr, y, x, clip(label.center(width), width), attr)
+        self.hits.append((y, x, y, x + width - 1, action))
+
+    def draw_menu(self, h, w):
+        P = self.pal
+        cw = MIN_W
+        title = f"{self.g('base')}  TOWER DEFENSE  {self.g('base')}"
+        self.center(1, title, P(220, -1, True), cw)
+        self.center(2, "edição Termux", P(244), cw)
+        # faixa animada: um monstro andando pela trilha
+        pos = int(self.anim * 3) % (W + 4) - 2
+        for tx in range(W):
+            x = 1 + tx * 2
+            put(self.scr, 4, x, "  ", P(-1, 22 if tx % 2 else 28))
+            put(self.scr, 5, x, "  ", P(-1, 137))
+        put(self.scr, 4, 1 + 12 * 2, self.tower_glyph("3"), P(250, 28, True))
+        if 0 <= pos < W:
+            put(self.scr, 5, 1 + pos * 2, self.enemy_glyph("normal"), P(196, 137, True))
+        seen = self.cfg.get("tutorial_visto")
+        for i, (action, label) in enumerate(MENU_ITEMS):
+            y = 7 + i * 2
+            text = f"  {label}" + ("   (comece aqui)" if action == "tutorial" and not seen else "")
+            sel = i == self.menu_i
+            attr = P(16, 220, True) if sel else P(255, 236)
+            self.button(y, 2, cw - 4, "", attr, lambda i=i: self.menu_choose(i))
+            put(self.scr, y, 3, ("▶" if sel else " ") + text, attr)
+        rec = self.cfg.get("recorde")
+        rec_text = f"{self.g('trophy')} Recorde: onda {rec['onda']} · {rec['abates']} abates" if rec else "Sem recorde ainda"
+        self.center(8 + len(MENU_ITEMS) * 2, rec_text, P(229), cw)
+        self.center(h - 1, f"v{self.version}  ·  setas + Enter ou toque", P(244), cw)
+
+    def help_lines(self):
+        t, e = self.tower_glyph, self.enemy_glyph
+        lines = [("COMO JOGAR", True),
+                 (f"Monstros saem da {self.g('spawn')} e andam até", False),
+                 (f"o {self.g('base')}. Construa torres na grama.", False),
+                 ("", False), ("TORRES", True)]
+        for k, c in TOWERS.items():
+            lines.append((f"{k} {t(k)} {c['name']:<9}{c['cost']:>3} ouro", False))
+            lines.append((f"     {c['info']}", False))
+        lines += [("", False), ("MONSTROS", True)]
+        for kind, c in ENEMIES.items():
+            lines.append((f"{e(kind)} {c['name']:<8} vida {c['hp']:<4} dano {c['dmg']}", False))
+        lines += [("", False), ("TOQUE", True),
+                  ("casa: move · de novo: constrói", False),
+                  ("torre 2x: melhora (até nível 3)", False),
+                  ("barra de baixo: chama a onda", False),
+                  ("topo: pausa", False),
+                  ("", False), ("TECLAS", True),
+                  ("setas/wasd  1-4 torre  Enter", False),
+                  ("u melhora  x vende  n onda", False),
+                  ("f acelera  p pausa  h ajuda", False),
+                  ("", False), ("qualquer tecla volta", False)]
+        return lines
+
+    def draw_help(self, h, w):
+        lines = self.help_lines()
+        self.help_scroll = min(self.help_scroll, max(0, len(lines) - h + 1))
+        P = self.pal
+        for i, (text, strong) in enumerate(lines[self.help_scroll:self.help_scroll + h - 1]):
+            put(self.scr, i, 1, text, P(220, -1, True) if strong else P(255))
+        if len(lines) > h - 1:
+            put(self.scr, h - 1, 1, "↑↓ rola · outra tecla volta", P(244))
+        self.hits.append((0, 0, h - 1, w - 1, lambda: setattr(self, "screen", "menu" if self.screen == "help" else "game")))
+
+    draw_help_game = draw_help
+
+    def draw_options(self, h, w):
+        P = self.pal
+        self.center(1, "OPÇÕES", P(220, -1, True))
+        for i, (action, label) in enumerate(self.options()):
+            y = 3 + i * 2
+            sel = i == self.opt_i
+            attr = P(16, 220, True) if sel else P(255, 236)
+            self.button(y, 2, MIN_W - 4, "", attr, lambda i=i: self.option_choose(i))
+            put(self.scr, y, 3, ("▶ " if sel else "  ") + label, attr)
+        put(self.scr, 12, 2, "Use NÃO em Emojis se as figuras", P(244))
+        put(self.scr, 13, 2, "aparecerem desalinhadas no mapa.", P(244))
+        if self.message and time.monotonic() < self.message_until:
+            put(self.scr, 15, 2, self.message, P(114, -1, True))
+
+    def draw_game(self, h, w):
+        g, P = self.game, self.pal
+        top, left = 3, 1
+        # HUD (tocar abre a pausa)
+        hud = (f" {self.g('life')}{g.life:<3} {self.g('gold')}{g.gold:<5} {self.g('wave')}{g.wave:<3}"
+               f" {self.g('kills')}{g.kills}")
+        if g.speed == 2:
+            hud += f" {self.g('fast')}"
+        put(self.scr, 0, 0, clip(hud + " " * MIN_W, MIN_W - 4) + " ||", P(255, 235, True))
+        self.hits.append((0, 0, 0, MIN_W - 1, self.open_pause))
+        # seletor de torres
+        x = 0
+        for k, c in TOWERS.items():
+            label = f"{k}{self.tower_glyph(k)}{c['cost']}"
+            sel = k == self.selected
+            attr = P(16, 220, True) if sel else P(250, 236)
+            put(self.scr, 1, x, " " + label + " ", attr)
+            wlab = text_width(label) + 2
+            self.hits.append((1, x, 1, x + wlab - 1, lambda k=k: setattr(self, "selected", k)))
+            x += wlab + 1
+        name = TOWERS[self.selected]["name"]
+        if x + len(name) <= MIN_W:
+            put(self.scr, 1, x, name, P(220, -1, True))
+        # moldura
+        border = P(101)
+        put(self.scr, top - 1, 0, "╭" + "─" * (2 * W) + "╮", border)
+        put(self.scr, top + H, 0, "╰" + "─" * (2 * W) + "╯", border)
+        for ty in range(H):
+            put(self.scr, top + ty, 0, "│", border)
+            put(self.scr, top + ty, left + 2 * W, "│", border)
+        self.draw_map(top, left)
+        # status (toque chama a onda)
+        self.draw_status(top + H + 1, h)
+
+    def range_cells(self):
+        g = self.game
         cx, cy = self.cursor
-        ch, a = cells[cy][cx]
-        cells[cy][cx] = (ch, a | curses.A_REVERSE)
+        t = g.towers.get((cx, cy))
+        if t is None and not self.cursor_moved:
+            return set()
+        r = t.range if t else (TOWERS[self.selected]["range"] if g.can_build(cx, cy) else 0)
+        if not r:
+            return set()
+        return {(x, y) for x in range(W) for y in range(H) if (x - cx) ** 2 + (y - cy) ** 2 <= r * r}
 
-        # agrupa celulas vizinhas com o mesmo atributo: menos chamadas ao curses por quadro
-        for y, row in enumerate(cells):
-            start, run, run_attr = 0, [], row[0][1]
-            for x, (ch, a) in enumerate(row):
-                if a != run_attr:
-                    safe_addstr(self.scr, top + y, start, "".join(run), run_attr)
-                    start, run, run_attr = x, [], a
-                run.append(ch)
-            safe_addstr(self.scr, top + y, start, "".join(run), run_attr)
+    def draw_map(self, top, left):
+        g, P = self.game, self.pal
+        now = g.time
+        in_range = self.range_cells()
+        cells = {}
+        for (x, y), t in g.towers.items():
+            # fundo mostra o nivel: 2 esverdeado, 3 dourado
+            cells[(x, y)] = (self.tower_glyph(t.key), TEXT_COLORS[t.key], LEVEL_BG.get(t.level))
+        cells[PATH[0]] = (self.g("spawn"), 255, None)
+        cells[PATH[-1]] = (self.g("base"), 255, None)
+        for e in g.enemies:
+            ex, ey = enemy_pos(e)
+            pos = (int(round(ex)), int(round(ey)))
+            bg = None
+            ratio = e.hp / e.max_hp
+            if now < e.hit_until:
+                bg = 231
+            elif ratio < 0.35:
+                bg = 196
+            elif ratio < 0.7:
+                bg = 208
+            cells[pos] = (self.enemy_glyph(e.kind), TEXT_COLORS[e.kind], bg)
+        for (x, y, _) in g.effects:
+            cells[(x, y)] = (self.g("kill"), 226, None)
+        step = self.tut_step()
+        blink = int(time.monotonic() * 3) % 2 == 0
+        marks = set(step["marks"]) if step else set()
+        for y in range(H):
+            for x in range(W):
+                on_path = (x, y) in PATH_SET
+                if on_path:
+                    bg = 179 if (x, y) in in_range else 137
+                else:
+                    bg = 70 if (x, y) in in_range else 28
+                glyph, fg, special = cells.get((x, y), ("  ", -1, None))
+                if glyph == "  " and not on_path and (x * 7 + y * 13) % 6 == 0:
+                    glyph, fg = "· ", (76 if (x, y) in in_range else 34)  # textura de grama
+                if special is not None:
+                    bg = special
+                    if not self.emoji and glyph.strip() and special in (196, 208, 231):
+                        fg = 16  # letra preta sobre o fundo de monstro ferido
+                if (x, y) in marks and blink:
+                    bg = 226
+                    if glyph == "  ":
+                        glyph = self.g("mark")
+                if [x, y] == self.cursor:
+                    bg = 226 if not self.emoji or glyph != "  " else 220
+                attr = P(fg if (not self.emoji or glyph == "· ") else -1, bg, glyph != "· ")
+                if not self.emoji and [x, y] == self.cursor:
+                    attr = P(16, 226, True)
+                sx = left + 2 * x
+                put(self.scr, top + y, sx, glyph if text_width(glyph) == 2 else (glyph + " ")[:2], attr)
+                self.hits.append((top + y, sx, top + y, sx + 1, lambda x=x, y=y: self.tap_cell(x, y)))
 
-    def _draw_help(self, top):
-        safe_addstr(self.scr, top, 0, f"AJUDA  Tower Defense v{self.version}", curses.A_BOLD | curses.A_REVERSE)
-        for i, line in enumerate(HELP_LINES[: GRID_H - 1]):
-            safe_addstr(self.scr, top + 1 + i, 0, line)
-
-    # ------------------------------------------------------------- laco
-
-    def run(self):
-        curses.curs_set(0)
-        self.scr.keypad(True)
-        last = frame_start = time.monotonic()
-        while not self.done:
-            self.too_small = screen_too_small(self.scr)
-            if self.busy():
-                wait = 1 / FPS - (time.monotonic() - frame_start)
+    def draw_status(self, y, h):
+        g, P = self.game, self.pal
+        step = self.tut_step()
+        if step:
+            lines = [ln.format(spawn=self.g("spawn"), base=self.g("base"), mark=self.g("mark"),
+                               gold=self.g("gold"), life=self.g("life"), fast=self.g("fast"),
+                               party=self.g("party"), boss=self.enemy_glyph("chefe"),
+                               t1=self.tower_glyph("1"), t3=self.tower_glyph("3"), t4=self.tower_glyph("4"))
+                     for ln in step["text"]]
+            header = f"TUTORIAL {self.tut_i + 1}/{len(self.tut)}"
+            put(self.scr, y, 0, clip(header + " " * MIN_W, MIN_W), P(16, 114, True))
+            for i, ln in enumerate(lines):
+                if y + 1 + i < h:
+                    put(self.scr, y + 1 + i, 1, ln, P(255, -1, True))
+            if step["wait"] is None and y + 1 + len(lines) < h:
+                self.button(y + 1 + len(lines), 1, MIN_W - 2, "Toque aqui ou Enter para seguir ▶",
+                            P(16, 220, True), self.tut_advance)
+            elif self.tut_i == 3 and y + 1 + len(lines) < h:
+                self.button(y + 1 + len(lines), 1, MIN_W - 2, "▶ Chamar onda", P(16, 114, True), self.call_wave)
+            elif self.message and time.monotonic() < self.message_until and y + 1 + len(lines) < h:
+                put(self.scr, y + 1 + len(lines), 1, self.message, P(229, -1, True))
+            return
+        # linha 1: acao principal / mensagem
+        if self.message and time.monotonic() < self.message_until:
+            put(self.scr, y, 0, clip(" " + self.message + " " * MIN_W, MIN_W), P(229, 238, True))
+        elif not g.wave_active and not g.enemies and not g.over:
+            self.button(y, 0, MIN_W, f"▶ Toque aqui ou n: onda {g.wave + 1}", P(16, 114, True), self.call_wave)
+        else:
+            left = len(g.queue) + len(g.enemies)
+            put(self.scr, y, 0, clip(f" Onda {g.wave}: faltam {left}" + " " * MIN_W, MIN_W), P(250, 236))
+        # linha 2: o que o cursor mostra
+        if y + 1 < h:
+            cx, cy = self.cursor
+            t = g.towers.get((cx, cy))
+            if t:
+                up = t.upgrade_cost
+                info = f"{self.tower_glyph(t.key)} nv{t.level} dano {t.damage:.0f} alc {t.range:.1f}"
+                info += f" · u:{up}" if up else " · máx"
+                info += f" x:+{t.refund}"
+            elif (cx, cy) in PATH_SET:
+                info = "Trilha: não dá para construir"
             else:
-                # parado: dorme ate chegar uma tecla, sem redesenhar 30x por segundo
+                c = TOWERS[self.selected]
+                info = f"{self.tower_glyph(self.selected)} {c['name']} {c['cost']}: {c['info']}"
+            put(self.scr, y + 1, 1, info, P(250))
+        if y + 2 < h:
+            put(self.scr, y + 2, 1, "u melhora x vende f acelera h ajuda", P(244))
+
+    def draw_overlay(self, h, w):
+        P = self.pal
+        g = self.game
+        box_w = MIN_W - 6
+        x0 = 3
+        if self.overlay == "pause":
+            title = ["PAUSA"]
+        else:
+            title = [f"{self.enemy_glyph('chefe')} A BASE CAIU!", f"Onda {g.wave} · {g.kills} abates"]
+            if self.new_record:
+                title.append(f"{self.g('trophy')} Novo recorde!")
+        items = self.overlay_items()
+        height = len(title) + 2 + len(items) * 2
+        y0 = max(2, 3 + (H - height) // 2)
+        frame = P(220, 236, True)
+        put(self.scr, y0, x0, "╭" + "─" * (box_w - 2) + "╮", frame)
+        for i in range(1, height):
+            put(self.scr, y0 + i, x0, "│" + " " * (box_w - 2) + "│", frame)
+        put(self.scr, y0 + height, x0, "╰" + "─" * (box_w - 2) + "╯", frame)
+        for i, t in enumerate(title):
+            tx = x0 + max(1, (box_w - text_width(t)) // 2)
+            put(self.scr, y0 + 1 + i, tx, t, P(255, 236, True))
+        for i, (action, label) in enumerate(items):
+            y = y0 + len(title) + 2 + i * 2
+            sel = i == self.overlay_i
+            attr = P(16, 220, True) if sel else P(255, 238, True)
+            self.button(y, x0 + 2, box_w - 4, label, attr, lambda i=i: self.overlay_choose(i))
+
+    # ------------------------------------------------------ laco
+    def run(self):
+        last = frame = time.monotonic()
+        was_busy = True  # garante o primeiro desenho
+        while not self.done:
+            if self.screen == "menu" and not self.overlay:
+                wait = 0.15  # animacao do menu devagar: poupa bateria
+            elif self.busy():
+                wait = 1 / FPS - (time.monotonic() - frame)
+            else:
                 wait = IDLE_WAIT
             self.scr.timeout(max(0, int(wait * 1000)))
             k = self.scr.getch()
             self.scr.timeout(0)
-            # le todas as teclas acumuladas: segurar uma tecla nao cria fila atrasada
+            had_input = False
             while k != -1 and not self.done:
-                self.key(k)
+                self.on_key(k)
+                had_input = True
                 k = self.scr.getch()
             if self.done:
                 break
-            frame_start = now = time.monotonic()
+            frame = now = time.monotonic()
             dt = min(now - last, 0.25)
             last = now
-            self.too_small = screen_too_small(self.scr)
-            self.tick(dt)
-            self.render()
+            self.anim += dt
+            if self.screen == "game" and self.game and not self.overlay and not self.too_small:
+                self.game.update(dt)
+                if self.tut:
+                    self.check_tutorial()
+                if self.game and self.game.over and self.overlay is None:
+                    self.finish_game()
+            busy = self.busy() or (self.screen == "menu" and not self.overlay)
+            # parado e sem tecla: nada mudou na tela, entao nao redesenha (poupa bateria)
+            if had_input or busy or was_busy:
+                self.render()
+            was_busy = busy
 
 
-def play(stdscr, touch=True):
-    Jogo(stdscr, touch).run()
+USAGE = """Tower Defense para o terminal do Termux
 
-
-USAGE = """Tower Defense de terminal
-
-Uso: td [opcoes]
-  --sem-toque   desativa o toque na tela (use se o Termux nao abrir o teclado)
-  --versao      mostra a versao
+Uso: td [opções]
+  --tutorial    começa direto no tutorial
+  --jogar       começa direto uma partida
+  --sem-emoji   desenha com letras (se os emojis desalinharem)
+  --sem-toque   desativa o toque na tela
+  --versao      mostra a versão
   --ajuda       mostra esta ajuda
 """
 
@@ -657,10 +1101,12 @@ def main(argv=None):
     if "--ajuda" in args or "-h" in args:
         print(USAGE)
         return 0
-    # sem isso o curses espera ~1 s apos Esc para distinguir de teclas especiais
     os.environ.setdefault("ESCDELAY", "25")
-    touch = "--sem-toque" not in args
-    curses.wrapper(play, touch)
+    locale.setlocale(locale.LC_ALL, "")
+    emoji = False if "--sem-emoji" in args else None
+    touch = False if "--sem-toque" in args else None
+    start = "tutorial" if "--tutorial" in args else ("play" if "--jogar" in args else None)
+    curses.wrapper(lambda scr: App(scr, emoji, touch, start).run())
     return 0
 
 

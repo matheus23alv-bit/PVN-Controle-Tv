@@ -1,10 +1,10 @@
-"""Simula partidas com um jogador automático para medir o balanceamento.
+"""Simula partidas com jogadores automáticos para medir o balanceamento.
 
 Uso: python3 testes/simulacao_balanceamento.py [caminho/td.py] [partidas]
 """
 import importlib.util
+import math
 import os
-import random
 import statistics
 import sys
 
@@ -12,67 +12,61 @@ here = os.path.dirname(os.path.abspath(__file__))
 td = None
 
 
-def load(td_path):
+def load(path):
     global td
-    spec = importlib.util.spec_from_file_location("td", td_path)
+    spec = importlib.util.spec_from_file_location("td", path)
     td = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(td)
     return td
 
 
-def cover_score(cell, path):
-    return sum(1 for p in path if (p[0] - cell[0]) ** 2 + (p[1] - cell[1]) ** 2 <= 9)
+def best_spots(key):
+    r = td.TOWERS[key]["range"]
+    free = [(x, y) for x in range(td.W) for y in range(td.H) if (x, y) not in td.PATH_SET]
+    return sorted(free, key=lambda c: -sum(1 for p in td.PATH if math.hypot(p[0] - c[0], p[1] - c[1]) <= r))
 
 
-def play(strategy, seed, max_waves=40, dt=0.1):
-    random.seed(seed)
-    path = td.build_path()
-    path_set = set(path)
-    spots = sorted(
-        ((x, y) for x in range(td.GRID_W) for y in range(td.GRID_H) if (x, y) not in path_set),
-        key=lambda c: -cover_score(c, path),
-    )
-    state = {"gold": td.START_GOLD, "base_hp": td.START_LIFE, "wave": 0, "kills": 0}
-    towers, now = [], 0.0
-    for wave in range(1, max_waves + 1):
-        # compra entre ondas, sempre no melhor ponto livre
-        while True:
-            key = strategy(towers)
-            cost = td.TOWER_TYPES[key]["cost"]
-            free = [s for s in spots if all((t.x, t.y) != s for t in towers)]
-            if state["gold"] < cost or not free:
+def play(order, seed, upgrade=False, max_waves=50, dt=0.1):
+    """order: sequencia de torres a comprar em rodizio. upgrade: melhora antes de construir nova."""
+    g = td.Game(seed=seed)
+    spots = {k: best_spots(k) for k in td.TOWERS}
+    n = 0
+    while g.wave < max_waves:
+        while True:  # gasta o ouro entre as ondas
+            if upgrade:
+                cands = [t for t in g.towers.values() if t.upgrade_cost and t.upgrade_cost <= g.gold]
+                if cands:
+                    t = min(cands, key=lambda t: t.upgrade_cost)
+                    g.upgrade(t.x, t.y)
+                    continue
+            key = order[n % len(order)]
+            if g.gold < td.TOWERS[key]["cost"]:
                 break
-            td.try_place_tower(list(free[0]), towers, path_set, state, key)
-        state["wave"] = wave
-        queue, enemies, timer = td.make_wave(wave), [], 0.0
-        while queue or enemies:
-            timer -= dt
-            if timer <= 0 and queue:
-                enemies.append(td.Enemy(queue.pop(0), wave))
-                timer = td.SPAWN_INTERVAL
-            td.update_enemies(enemies, path, dt, state)
-            td.update_towers(towers, enemies, path, now, state)
-            enemies = [e for e in enemies if e.alive]
-            now += dt
-            if state["base_hp"] <= 0:
-                return wave, len(towers)
-    return max_waves, len(towers)
+            spot = next((s for s in spots[key] if g.can_build(*s)), None)
+            if spot is None:
+                break
+            g.build(*spot, key)
+            n += 1
+        g.next_wave()
+        while (g.wave_active or g.enemies) and not g.over:
+            g.update(dt)
+        if g.over:
+            return g.wave, len(g.towers)
+    return max_waves, len(g.towers)
 
 
 STRATEGIES = {
-    "so Arqueiro": lambda t: "1",
-    "so Canhao": lambda t: "2",
-    "so Mago": lambda t: "3",
-    "misto 1-3-2": lambda t: "132"[len(t) % 3],
+    "so Arqueiro": ("1", False), "so Canhao": ("2", False), "so Mago": ("3", False),
+    "so Vortice": ("4", False), "misto M-A-C-V": ("3124", False), "misto + melhorar": ("3124", True),
 }
 
 if __name__ == "__main__":
-    td_path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "..", "source", "td.py")
-    runs = int(sys.argv[2]) if len(sys.argv) > 2 else 10
-    load(td_path)
-    print(f"Arquivo: {td_path}  |  {runs} partidas por estrategia\n")
-    print(f"{'estrategia':<14}{'onda media':>11}{'min':>6}{'max':>6}{'torres':>8}")
-    for name, fn in STRATEGIES.items():
-        res = [play(fn, seed) for seed in range(runs)]
-        waves = [r[0] for r in res]
-        print(f"{name:<14}{statistics.mean(waves):>11.1f}{min(waves):>6}{max(waves):>6}{statistics.mean(r[1] for r in res):>8.1f}")
+    path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "..", "source", "td.py")
+    runs = int(sys.argv[2]) if len(sys.argv) > 2 else 8
+    load(path)
+    print(f"{os.path.basename(path)} | HP_GROWTH={td.HP_GROWTH} | {runs} partidas por estrategia\n")
+    print(f"{'estrategia':<18}{'onda media':>11}{'min':>6}{'max':>6}{'torres':>8}")
+    for name, (order, up) in STRATEGIES.items():
+        res = [play(order, s, up) for s in range(runs)]
+        w = [r[0] for r in res]
+        print(f"{name:<18}{statistics.mean(w):>11.1f}{min(w):>6}{max(w):>6}{statistics.mean(r[1] for r in res):>8.1f}")

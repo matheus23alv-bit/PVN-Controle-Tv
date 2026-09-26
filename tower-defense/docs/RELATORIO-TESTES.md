@@ -1,55 +1,62 @@
-# Relatório de testes — Tower Defense (Termux)
+# Relatório de testes — Tower Defense 2.0.0
 
-Data: 2026-09-25 · Python 3.11 · Terminal real via `tmux` nos tamanhos 40×22 (Termux em retrato), 80×24 e 32×14 (tela pequena)
+Data: 2026-09-26 · Python 3.11 · terminal real via `tmux` em 44×24 (retrato de celular) com 256 cores · telas conferidas em imagem, com a fonte de emoji do Android (Noto Color Emoji).
 
 ## Resultado
 
-| Bateria | 1.0.0 (legado) | 1.0.1 (source) |
-|---|---|---|
-| Lógica (`test_logica.py`) | 13 / 15 | 15 / 15 |
-| Terminal (`test_terminal.sh`) | 7 / 15 | 15 / 15 |
-| Balanceamento (onda média de um bot perfeito) | 40+ (nunca perde) | ~28 |
+| Bateria | Resultado |
+|---|---|
+| Lógica (`test_logica.py`) | 18 / 18 |
+| Tela: menu, tutorial inteiro pelo toque, partida, pausa, fim de jogo, opções (`test_terminal.sh`) | 35 / 35 |
+| Instalador: Linux, Termux com barra de teclas própria, `curl \| bash`, falhas (`test_instalador.sh`) | 17 / 17 |
 
-Das 8 falhas de terminal da 1.0.0, 6 são defeitos reais, 1 é só diferença no formato do texto do HUD ("Onda:  1" em vez de "Onda 1") e 1 é consequência de outra falha (cancelar a saída não existe sem a confirmação).
+## Destaques da cobertura
 
-## Erros encontrados na 1.0.0
+**Mira das torres:** a mira otimizada (só a faixa da trilha ao alcance da torre) foi comparada com um gabarito de força bruta em 400 cenários aleatórios, com as quatro torres, níveis 1 a 3, dano em área e lentidão. O resultado foi idêntico em todos.
 
-Todos corrigidos na 1.0.1.
+**Simulação:** um passo de 0,25 s dá o mesmo resultado que cinco passos de 0,05 s, então celular lento não muda o jogo.
 
-| # | Gravidade | Erro | Evidência |
-|---|---|---|---|
-| 1 | Alta | Impossível perder | Simulação com 20 partidas × 4 estratégias: todas chegaram à onda 40 e encheram o mapa (342 torres) |
-| 2 | Alta | HUD e controles cortados em 40 colunas | Captura em 40×22: `Torre [1] Arqueiro custo: 20 >1:Arquei`, `Setas/WASD move  1-3 torre  Enter const` |
-| 3 | Alta | Tela pequena sem aviso: base `B` e controles invisíveis | Captura em 32×14 |
-| 4 | Média | Esc/`q` encerra a partida sem confirmar | Esc fica ao lado das setas na barra do Termux |
-| 5 | Média | Sem reinício após perder | Única opção era sair |
-| 6 | Baixa | Última coluna do terminal nunca desenhada | `safe_addstr` cortava 1 caractere a mais |
-| 7 | Baixa | Esc com ~1 s de atraso | `ESCDELAY` padrão |
+**Tutorial:** os 9 passos são percorridos só com toques, do menu até o início da partida de verdade.
 
-Um bug foi encontrado e corrigido **durante** o desenvolvimento da 1.0.1, antes da entrega: após `r`, a nova partida já nascia perdida porque o laço ainda lia a vida da partida anterior. Existe teste de regressão para ele ("r reinicia com partida limpa").
+**Regressão do toque:** depois de um toque, os monstros continuam andando sem nenhuma outra tecla.
+
+## Bug encontrado e corrigido
+
+Na 1.1.0, depois de cada toque o jogo congelava até a próxima tecla. O programa não pedia o evento de "soltar o dedo" ao ncurses, que o descartava e deixava a leitura de teclas bloqueada, ignorando o tempo limite. O mesmo bug foi achado e corrigido no controle da TV.
 
 ## Balanceamento
 
-O bot compra torres entre as ondas sempre na posição que cobre mais caminho. Isso é jogo perfeito; um humano tende a ficar entre as ondas 15 e 25.
+Jogadores automáticos compram entre as ondas sempre na casa de maior cobertura, com 3 partidas por estratégia.
 
-| Crescimento de vida por onda | Onda média do bot |
-|---|---|
-| Linear +15% (1.0.0) | 40+ |
-| 1,12 composto | 38–40 |
-| 1,15 composto | 32–35 |
-| **1,18 composto (1.0.1)** | **28–31** |
-| 1,22 composto | 22–25 |
+| Ajuste | Só Arqueiro | Mago+Arqueiro+Canhão, melhorando | Com Vórtice, melhorando |
+|---|---|---|---|
+| Primeira versão das regras (vida +14%/onda) | 30 (mapa lotado) | 30 (mapa lotado) | 30 |
+| Final: vida +16%/onda, melhoria mais forte e barata, ouro mais contido | 25,0 (151 torres) | 27,0 (54 torres) | 26,7 (51 torres) |
 
-As 4 estratégias (só Arqueiro, só Canhão, só Mago, misto) terminaram com diferença de até 2 ondas entre si, então nenhuma torre é dominante.
+Na primeira versão, todas as estratégias lotavam o mapa e morriam juntas no muro dos 4 dragões da onda 30. Na final, melhorar torres rende mais que espalhar, e o Vórtice empata com a mistura sem ele. Um jogador humano deve ficar entre as ondas 12 e 22; é estimativa, e o seu teste vai confirmar.
+
+## Desempenho
+
+Medido em terminal real, com emojis e 256 cores:
+
+| Cenário | Lógica | Desenho | Total |
+|---|---|---|---|
+| 60 torres, 60 monstros, todas atirando | 0,64 ms | 0,94 ms | 1,58 ms |
+| 151 torres (mapa lotado), 120 monstros | 2,30 ms | 0,92 ms | 3,23 ms |
+
+O orçamento a 20 quadros por segundo é 50 ms: sobra margem de 15× para celulares mais lentos. Com o jogo parado entre ondas, o uso de CPU é de 0,05%, porque a tela não é redesenhada sem mudança.
+
+## O que só o seu celular confirma
+
+O alinhamento dos emojis na fonte do seu aparelho, o toque do Termux e a sensação da dificuldade. Se os emojis desalinharem, use Opções → Emojis: NÃO.
 
 ## Como rodar
 
 ```bash
 cd tower-defense
 python3 -m unittest testes/test_logica.py
-bash testes/test_terminal.sh                 # precisa de tmux; leva ~45 s
-python3 testes/simulacao_balanceamento.py    # leva alguns minutos
-# para testar o legado:
-TD_PATH=legados/v1.0.0/td.py python3 -m unittest testes/test_logica.py
-bash testes/test_terminal.sh legados/v1.0.0/td.py
+bash testes/test_terminal.sh        # precisa de tmux; ~1 minuto
+bash testes/test_instalador.sh
+python3 testes/simulacao_balanceamento.py source/td.py 3    # alguns minutos
+python3 testes/benchmark.py 2> resultado.txt                # num terminal
 ```
