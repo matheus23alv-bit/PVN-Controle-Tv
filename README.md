@@ -17,6 +17,19 @@ curl -fsSL https://raw.githubusercontent.com/matheus23alv-bit/PVN-Controle-Tv/HE
 
 Instala os dois projetos, confere o emissor infravermelho do celular e mostra o roteiro de teste. Cada projeto também tem seu instalador próprio, descrito no LEIA-ME dele.
 
+## Pelo pack zip
+
+Cada entrega vem com um `PVN-pack-<data>-controle-<versão>-td-<versão>-<commit>.zip`, com o repositório daquele commit e um `PACK-INFO.txt` (versões e SHA-256 de cada arquivo). Para instalar a versão do pack no Termux, salve o zip na pasta Download do celular e rode (usa o pack mais recente da pasta):
+
+```bash
+pkg install -y unzip
+termux-setup-storage
+Z="$(ls -t ~/storage/downloads/PVN-pack-*.zip | head -1)"
+unzip -o "$Z" -d ~ && bash ~/"$(basename "$Z" .zip)"/setup-teste.sh
+```
+
+Para gerar um pack: `bash empacotar.sh [pasta] [commit]`.
+
 ## Estrutura de cada projeto
 
 ```
