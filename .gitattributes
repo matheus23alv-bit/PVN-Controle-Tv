@@ -1,0 +1,5 @@
+# .bat precisa de CRLF no Windows; .sh e .py precisam de LF no Termux/Linux
+*.bat text eol=crlf
+*.sh  text eol=lf
+*.py  text eol=lf
+VERSION text eol=lf

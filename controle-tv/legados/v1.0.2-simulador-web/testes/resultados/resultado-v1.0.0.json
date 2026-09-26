@@ -1,0 +1,188 @@
+[
+  {
+    "name": "Inicia desligada",
+    "ok": true,
+    "detail": "",
+    "pending": false
+  },
+  {
+    "name": "Liga pelo botão",
+    "ok": true,
+    "detail": "",
+    "pending": false
+  },
+  {
+    "name": "Desliga pelo botão",
+    "ok": true,
+    "detail": "",
+    "pending": false
+  },
+  {
+    "name": "Sem erros de console (fluxo básico)",
+    "ok": true,
+    "detail": "",
+    "pending": false
+  },
+  {
+    "name": "CH+ vai para canal 2",
+    "ok": true,
+    "detail": "",
+    "pending": false
+  },
+  {
+    "name": "CH- faz wrap para canal 12",
+    "ok": true,
+    "detail": "",
+    "pending": false
+  },
+  {
+    "name": "Dígito único troca canal (7)",
+    "ok": true,
+    "detail": "",
+    "pending": false
+  },
+  {
+    "name": "Dois dígitos troca canal (11)",
+    "ok": true,
+    "detail": "",
+    "pending": false
+  },
+  {
+    "name": "Último canal volta para 7",
+    "ok": true,
+    "detail": "",
+    "pending": false
+  },
+  {
+    "name": "Último canal preservado ao digitar canal atual",
+    "ok": false,
+    "detail": "mostrou 7, esperado 11",
+    "pending": false
+  },
+  {
+    "name": "Canal inexistente (99) dá feedback ao usuário",
+    "ok": false,
+    "detail": "tela: \"7\" sem aviso",
+    "pending": false
+  },
+  {
+    "name": "VOL+ sobe de 20 para 22",
+    "ok": true,
+    "detail": "",
+    "pending": false
+  },
+  {
+    "name": "OSD de volume aparece",
+    "ok": true,
+    "detail": "",
+    "pending": false
+  },
+  {
+    "name": "OSD de volume some sozinho",
+    "ok": true,
+    "detail": "",
+    "pending": false
+  },
+  {
+    "name": "Mudo exibe selo MUDO",
+    "ok": true,
+    "detail": "",
+    "pending": false
+  },
+  {
+    "name": "VOL+ remove mudo",
+    "ok": true,
+    "detail": "",
+    "pending": false
+  },
+  {
+    "name": "Volume limitado a 100",
+    "ok": true,
+    "detail": "",
+    "pending": false
+  },
+  {
+    "name": "TV desligada ignora CH/VOL",
+    "ok": true,
+    "detail": "",
+    "pending": false
+  },
+  {
+    "name": "LED IV apaga após o disparo",
+    "ok": false,
+    "detail": "classe .active permanece — LED fica aceso para sempre",
+    "pending": false
+  },
+  {
+    "name": "Espaço com botão focado liga a TV uma única vez",
+    "ok": false,
+    "detail": "power=on, sinais=3 (esperado on/2)",
+    "pending": false
+  },
+  {
+    "name": "Setas não rolam a página ao usar atalhos",
+    "ok": true,
+    "detail": "scrollY=0",
+    "pending": false
+  },
+  {
+    "name": "Estado corrompido não quebra o app",
+    "ok": false,
+    "detail": "Cannot read properties of undefined (reading 'num')",
+    "pending": false
+  },
+  {
+    "name": "Recarregar durante digitação não trava número pendente",
+    "ok": false,
+    "detail": "tela mostra \"5\" indefinidamente",
+    "pending": false
+  },
+  {
+    "name": "Persistência de canal e fonte",
+    "ok": true,
+    "detail": "",
+    "pending": false
+  },
+  {
+    "name": "Menu/Navegação/OK produzem efeito visível",
+    "ok": false,
+    "detail": "tela idêntica antes e depois (pendente v1.1)",
+    "pending": true
+  },
+  {
+    "name": "Sem rolagem horizontal em 360px",
+    "ok": true,
+    "detail": "excesso 0px",
+    "pending": false
+  },
+  {
+    "name": "Sem rolagem horizontal em 390px",
+    "ok": true,
+    "detail": "excesso 0px",
+    "pending": false
+  },
+  {
+    "name": "Sem rolagem horizontal em 768px",
+    "ok": true,
+    "detail": "excesso 0px",
+    "pending": false
+  },
+  {
+    "name": "Sem rolagem horizontal em 1280px",
+    "ok": true,
+    "detail": "excesso 0px",
+    "pending": false
+  },
+  {
+    "name": "Todos os botões têm aria-label",
+    "ok": false,
+    "detail": "sem rótulo: 1 2 3 4 5 6 7 8 9 ⟲ 0 ⌫",
+    "pending": false
+  },
+  {
+    "name": "Zoom do usuário permitido",
+    "ok": false,
+    "detail": "viewport bloqueia zoom",
+    "pending": false
+  }
+]

@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+# Emissor falso para testes. TV_MOCK_SEM_IR=1 simula celular sem emissor.
+if [ -n "${TV_MOCK_SEM_IR:-}" ]; then echo "[]"; else echo '[{"min":30000,"max":60000}]'; fi
