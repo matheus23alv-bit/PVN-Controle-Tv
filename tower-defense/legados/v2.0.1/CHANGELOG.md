@@ -2,50 +2,6 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versionamento semântico.
 
-## [3.0.0] — 2026-09-26
-
-Tela cheia em retrato (9:16), monstros novos com andar suave e criador de mapas dentro do jogo. A 2.0.1 está em `legados/v2.0.1/`.
-
-### Tela cheia vertical
-- O jogo ocupa a tela inteira do celular em pé. Cada casa cresce em escala (1×, 2× ou 3×) até o mapa preencher a altura: num celular comum (≈46×50 caracteres) cada casa vira 4 colunas × 2 linhas.
-- Mapas em retrato (11×19). Placar e botão de pausa (`||`) no topo; prévia da próxima onda logo abaixo.
-- Controles embaixo, ao alcance do polegar: barra de torres (4 botões com custo e nome) e barra de ações (▶ Onda, ⏩ velocidade, ⏫ Melhorar, 💲 Vender). Melhorar e Vender agem na torre do cursor e mostram o preço.
-- Fundo escuro em toda a tela; em telas menores (teclado aberto) o jogo volta à escala 1 sozinho.
-- Torres mostram o nível com ★ acima do emoji; a entrada pisca quando nasce um monstro; a base pisca vermelho quando um monstro chega.
-
-### Monstros e caminhada
-- Quatro monstros novos, liberados aos poucos: 🐌 Lesma (onda 4, se cura depois de 1 s sem apanhar), 🐢 Tartaruga (onda 5, casco tira 4 de dano de cada tiro), 🦇 Morcego (onda 6, rápido e nunca fica lento) e 👻 Fantasma (onda 8, some por 1,2 s a cada 3,7 s; sumido, só o Mago o vê).
-- O 🐉 Dragão, ferido pela metade, chama 3 ratos uma vez por luta.
-- O Mago ignora o casco e enxerga fantasmas: cada torre tem um papel.
-- Andar suave: o monstro aparece entre duas casas (meia casa na escala 1, um quarto de casa na escala 2) em vez de pular de casa em casa.
-- Cada monstro anda até 6% mais rápido ou mais devagar que os outros: a fila se espalha e ninguém fica escondido atrás do outro.
-- Barra de vida com oitavos de bloco acima de cada monstro ferido (escala 2 ou maior); fundo azul quando está lento; 💥 e "+ouro" subindo no abate.
-- Ondas sorteadas por peso entre os monstros já liberados; a linha de cima mostra quem vem na próxima.
-
-### Criador de mapas
-- Menu → **Criar mapa** (ou Mapas → Novo, ou `td --editor`). Ferramentas: Entrada, Trilha, Base, Grama (apaga), Árvore e Água.
-- Trilha pelos cantos: toque na casa de canto e a reta desde o último ponto (em laranja) é preenchida. A entrada já liga a ferramenta Trilha; a base alinhada fecha o caminho.
-- Validação ao vivo na linha de cima: "✔ Pronto para jogar" ou o que falta (entrada, base, trilha que se divide ou encosta, sem saída, solta, curta), com a casa do problema em vermelho.
-- Desfazer (80 passos), 🎲 Gerar (mapa aleatório), ▶ Testar (joga na hora e volta ao editor), 💾 Salvar com nome (aceita acentos), tamanhos 9×15, 11×19 e 13×23, Limpar tudo.
-- Água sob a trilha vira ponte.
-- Tela **Mapas**: prontos (Serpente, Espiral, Rio) e os seus, com miniatura, tamanho da trilha e recorde. Jogar, Editar (os prontos viram cópia), Novo, Gerar e Apagar (com confirmação).
-- Gerador de mapas: a mesma semente gera o mesmo mapa; às vezes as faixas ficam em pé; lagos e árvores longe da trilha.
-- Mapas são arquivos de texto em `~/.config/td-termux/mapas/*.mapa` (`.` grama, `#` trilha, `S` entrada, `B` base, `T` árvore, `~` água), editáveis também no `nano`.
-- Linha de comando: `td --mapas`, `td --gerar 11x19 42 > meu.mapa`, `td --validar meu.mapa`, `td --importar meu.mapa`, `td --jogar NOME`, `td --editor [NOME]`.
-- Recorde separado por mapa; o mapa escolhido fica salvo.
-
-### Alterado
-- Tutorial refeito para o layout novo; as casas marcadas são calculadas pelo mapa.
-- Ajuda com os monstros novos, o editor e o formato do arquivo, com quebra de linha pela largura da tela.
-- Textos do modo sem emoji: monstros com a inicial do nome (i, r, O, l, t, m, f, D).
-- O recorde antigo (mapa único da 2.0) não é mais mostrado; "Zerar recordes" limpa tudo.
-
-### Balanceamento
-- Simulado nos 3 mapas prontos e em 2 gerados: o jogador automático que mistura torres e melhora chega às ondas 25 a 30 (2.0.1: 26,7). Só Arqueiro caiu de 25 para 22–24 por causa do casco: misturar torres agora compensa.
-
-### Desempenho
-- 1,3 ms por quadro com 60 torres e 60 monstros na escala 2; 2,6 ms com 120 e 120 (orçamento de 50 ms).
-
 ## [2.0.1] — 2026-09-26
 
 ### Corrigido

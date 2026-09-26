@@ -185,7 +185,6 @@ fi
 printf '\n%s  ✔ Tower Defense %s instalado%s\n\n' "$G$B" "$VERSION" "$N"
 printf '  Para jogar, digite:  %s%s%s\n' "$B" "${COMMANDS[-1]}" "$N"
 printf '  %sDica: esconda o teclado e jogue tocando na tela.%s\n' "$D" "$N"
-printf '  %sCrie seus mapas: menu → Criar mapa (ou td --editor).%s\n' "$D" "$N"
 printf '  %sDesinstalar: bash %s/instalar.sh --remover%s\n\n' "$D" "$(short "$APP_DIR")" "$N"
 
 # le a resposta do terminal mesmo com "curl | bash"; sem terminal (testes), nao pergunta

@@ -1,4 +1,4 @@
-"""Mede o custo por quadro da lógica e do desenho do Tower Defense 2 em fim de jogo.
+"""Mede o custo por quadro da lógica e do desenho do Tower Defense 3 em fim de jogo.
 
 Precisa de um terminal real (usa curses); o resultado sai no stderr. Uso:
   python3 testes/benchmark.py [caminho/td.py] [torres] [inimigos] 2> resultado.txt
@@ -25,15 +25,15 @@ spec.loader.exec_module(td)
 def scenario():
     rnd = random.Random(7)
     g = td.Game(seed=7)
-    free = [(x, y) for x in range(td.W) for y in range(td.H) if (x, y) not in td.PATH_SET]
+    free = g.mapa.find(".")
     for x, y in rnd.sample(free, min(N_TOWERS, len(free))):
         t = td.Tower(x, y, rnd.choice("1234"))
         t.level = rnd.randint(1, 3)
         g.towers[(x, y)] = t
     for _ in range(N_ENEMIES):
-        e = td.Enemy(rnd.choice(list(td.ENEMIES)), 30)
+        e = td.Enemy(rnd.choice(list(td.ENEMIES)), 30, rng=rnd)
         e.hp = e.max_hp = 1e12
-        e.progress = rnd.uniform(0, len(td.PATH) - 2)
+        e.progress = rnd.uniform(0, len(g.path) - 2)
         e.speed = 0
         g.enemies.append(e)
     g.wave, g.wave_active = 30, True
@@ -51,7 +51,7 @@ def bench(scr):
 
     app = td.App(scr, emoji=True, touch=False, start="play")
     app.game = scenario()
-    app.cursor, app.cursor_moved = [12, 8], True
+    app.cursor, app.cursor_moved = [5, 9], True
     t0 = time.perf_counter()
     for _ in range(FRAMES):
         app.render()
