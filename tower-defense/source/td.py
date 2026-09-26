@@ -458,7 +458,7 @@ class App:
         self.touch = self.cfg.get("toque", True) if touch is None else touch
         self.pal = None
         self.screen = "menu"
-        self.menu_i = 0
+        self.menu_i = 0 if self.cfg.get("tutorial_visto") else 1  # primeira vez: Tutorial selecionado
         self.opt_i = 0
         self.help_scroll = 0
         self.game = None
@@ -800,7 +800,7 @@ class App:
         pos = int(self.anim * 3) % (W + 4) - 2
         for tx in range(W):
             x = 1 + tx * 2
-            put(self.scr, 4, x, "  ", P(-1, 22 if tx % 2 else 28))
+            put(self.scr, 4, x, "· " if (tx * 7) % 6 == 0 else "  ", P(34, 28))
             put(self.scr, 5, x, "  ", P(-1, 137))
         put(self.scr, 4, 1 + 12 * 2, self.tower_glyph("3"), P(250, 28, True))
         if 0 <= pos < W:

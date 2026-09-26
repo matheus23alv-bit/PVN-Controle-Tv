@@ -27,7 +27,8 @@ start 44 24 "python3 td.py"
 check "Título e itens do menu" 'screen | grep -q "TOWER DEFENSE" && screen | grep -q "Como jogar" && screen | grep -q "Opções"'
 check "Sugere o tutorial na primeira vez" 'screen | grep -q "Tutorial   (comece aqui)"'
 check "Sem recorde ainda" 'screen | grep -q "Sem recorde ainda"'
-key Down Down Enter
+check "Tutorial vem selecionado na primeira vez" 'screen | grep -q "▶  Tutorial"'
+key Down Enter
 check "Como jogar abre a ajuda" 'screen | grep -q "TORRES" && screen | grep -q "Vórtice"'
 key x
 check "Tecla volta ao menu" 'screen | grep -q "TOWER DEFENSE"'
@@ -89,7 +90,7 @@ check "Jogar de novo reinicia" 'row 1 | grep -q "💗1 .*🌊0" && ! screen | gr
 
 echo "== Opções"
 HOMEX=o start 44 24 "python3 td.py"
-key Down Down Down Enter Enter
+key Down Down Enter Enter
 check "Emojis: NÃO troca por letras" 'screen | grep -q "Emojis: NÃO (letras)" && HOMEX=o cfg | grep -q "\"emoji\": false"'
 key Down Down Down Enter
 key Up Up Up Enter

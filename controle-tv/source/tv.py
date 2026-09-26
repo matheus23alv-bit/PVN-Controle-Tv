@@ -339,7 +339,7 @@ class Transmitter:
 
     def send(self, freq, pattern, timeout=10):
         if self.simulate:
-            return True, f"simulado: {freq // 1000} kHz, {len(pattern)} pulsos"
+            return True, f"simulado, {freq // 1000} kHz"
         try:
             r = subprocess.run([self.cmd, "-f", str(freq), ",".join(map(str, pattern))],
                                capture_output=True, text=True, timeout=timeout, stdin=subprocess.DEVNULL)
