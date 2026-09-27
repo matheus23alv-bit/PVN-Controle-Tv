@@ -4,6 +4,8 @@
 #
 #   curl -fsSL https://raw.githubusercontent.com/matheus23alv-bit/PVN-Controle-Tv/HEAD/setup-teste.sh | bash
 #   bash setup-teste.sh          (de dentro do pack zip: instala a versão do pack)
+#
+# De dentro de um pack de um projeto só (empacotar.sh ... td), instala só esse projeto.
 set -uo pipefail
 
 BASE="${PVN_RAW:-https://raw.githubusercontent.com/matheus23alv-bit/PVN-Controle-Tv/HEAD}"
@@ -23,31 +25,56 @@ bad()  { printf '  %s✘%s %s\n' "$R" "$N" "$*"; }
 is_termux() { [ -n "${TERMUX_VERSION:-}" ] || [ -d /data/data/com.termux/files ]; }
 fetch() { if command -v curl >/dev/null 2>&1; then curl -fsSL "$1" -o "$2"; else wget -qO "$2" "$1"; fi; }
 
-printf '\n%s  ╭──────────────────────────────────╮%s\n' "$Y" "$N"
-printf '%s  │%s   %sPVN · SETUP DE TESTE COMPLETO%s  %s│%s\n' "$Y" "$N" "$B" "$N" "$Y" "$N"
-printf '%s  ╰──────────────────────────────────╯%s\n' "$Y" "$N"
-printf '  %s📺 Controle TV  +  🏰 Tower Defense%s\n' "$D" "$N"
-
-title "1/4  Preparação"
-if is_termux; then
-  ok "Termux detectado"
-  if ! command -v python3 >/dev/null 2>&1 || ! command -v termux-infrared-transmit >/dev/null 2>&1; then
-    warn "atualizando a lista de pacotes (1 a 3 minutos na primeira vez)..."
-    if pkg update -y </dev/null >/dev/null 2>&1; then ok "pacotes atualizados"; else warn "pkg update falhou; se a instalação falhar, rode: termux-change-repo"; fi
-  else
-    ok "Python e termux-api já presentes"
-  fi
-else
-  warn "fora do Termux: o controle roda só em modo simulado (sem emissor IR)"
-fi
-TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 SELF="${BASH_SOURCE[0]:-}"
 HERE=""
 [ -n "$SELF" ] && [ -f "$SELF" ] && HERE="$(cd "$(dirname "$SELF")" && pwd)"
-if [ -n "$HERE" ] && [ -f "$HERE/controle-tv/source/instalar.sh" ] && [ -f "$HERE/tower-defense/source/instalar.sh" ]; then
-  # rodando de dentro de um pack zip ou do repositório: instala exatamente esta versão
-  TV_INST="$HERE/controle-tv/source/instalar.sh"
-  TD_INST="$HERE/tower-defense/source/instalar.sh"
+TV_INST=""; TD_INST=""
+if [ -n "$HERE" ]; then
+  [ -f "$HERE/controle-tv/source/instalar.sh" ] && TV_INST="$HERE/controle-tv/source/instalar.sh"
+  [ -f "$HERE/tower-defense/source/instalar.sh" ] && TD_INST="$HERE/tower-defense/source/instalar.sh"
+fi
+# rodando de dentro de um pack zip ou do repositório: instala exatamente esta versão, e só
+# os projetos que vieram nele; pelo curl, baixa e instala os dois
+if [ -n "$TV_INST$TD_INST" ]; then LOCAL=1; else LOCAL=0; fi
+DO_TV=1; DO_TD=1
+[ "$LOCAL" = 1 ] && [ -z "$TV_INST" ] && DO_TV=0
+[ "$LOCAL" = 1 ] && [ -z "$TD_INST" ] && DO_TD=0
+TOTAL=$((2 + DO_TV + DO_TD)); STEP=1
+step() { title "$STEP/$TOTAL  $*"; STEP=$((STEP + 1)); }
+
+printf '\n%s  ╭──────────────────────────────────╮%s\n' "$Y" "$N"
+if [ "$DO_TV" = 1 ] && [ "$DO_TD" = 1 ]; then
+  printf '%s  │%s   %sPVN · SETUP DE TESTE COMPLETO%s  %s│%s\n' "$Y" "$N" "$B" "$N" "$Y" "$N"
+  printf '%s  ╰──────────────────────────────────╯%s\n' "$Y" "$N"
+  printf '  %s📺 Controle TV  +  🏰 Tower Defense%s\n' "$D" "$N"
+elif [ "$DO_TD" = 1 ]; then
+  printf '%s  │%s   %sPVN · SETUP DO TOWER DEFENSE%s   %s│%s\n' "$Y" "$N" "$B" "$N" "$Y" "$N"
+  printf '%s  ╰──────────────────────────────────╯%s\n' "$Y" "$N"
+  printf '  %s🏰 Tower Defense%s\n' "$D" "$N"
+else
+  printf '%s  │%s    %sPVN · SETUP DO CONTROLE TV%s    %s│%s\n' "$Y" "$N" "$B" "$N" "$Y" "$N"
+  printf '%s  ╰──────────────────────────────────╯%s\n' "$Y" "$N"
+  printf '  %s📺 Controle TV%s\n' "$D" "$N"
+fi
+
+step "Preparação"
+if is_termux; then
+  ok "Termux detectado"
+  if ! command -v python3 >/dev/null 2>&1 || { [ "$DO_TV" = 1 ] && ! command -v termux-infrared-transmit >/dev/null 2>&1; }; then
+    warn "atualizando a lista de pacotes (1 a 3 minutos na primeira vez)..."
+    if pkg update -y </dev/null >/dev/null 2>&1; then ok "pacotes atualizados"; else warn "pkg update falhou; se a instalação falhar, rode: termux-change-repo"; fi
+  elif [ "$DO_TV" = 1 ]; then
+    ok "Python e termux-api já presentes"
+  else
+    ok "Python já presente"
+  fi
+elif [ "$DO_TV" = 1 ]; then
+  warn "fora do Termux: o controle roda só em modo simulado (sem emissor IR)"
+else
+  warn "fora do Termux: as opções de tela do Termux ficam de fora"
+fi
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+if [ "$LOCAL" = 1 ]; then
   t="~"; ok "usando os arquivos desta pasta (${HERE/#$HOME/$t})"
 else
   TV_INST="$TMP/tv.sh"; TD_INST="$TMP/td.sh"
@@ -56,39 +83,54 @@ else
   ok "instaladores baixados do GitHub"
 fi
 
-title "2/4  PVN Controle TV"
-if bash "$TV_INST" </dev/null; then TV_OK=1; else TV_OK=0; fi
+TV_OK=0; TD_OK=0
+if [ "$DO_TV" = 1 ]; then
+  step "PVN Controle TV"
+  if bash "$TV_INST" </dev/null; then TV_OK=1; fi
+fi
+if [ "$DO_TD" = 1 ]; then
+  step "Tower Defense"
+  if TD_SEM_TUTORIAL=1 bash "$TD_INST" </dev/null; then TD_OK=1; fi
+fi
 
-title "3/4  Tower Defense"
-if TD_SEM_TUTORIAL=1 bash "$TD_INST" </dev/null; then TD_OK=1; else TD_OK=0; fi
-
-title "4/4  Conferência"
+step "Conferência"
 find_cmd() { command -v "$1" 2>/dev/null || { [ -x "$HOME/.local/bin/$1" ] && echo "$HOME/.local/bin/$1"; }; }
-TV_BIN="$(find_cmd tv)"; TD_BIN="$(find_cmd td)"
-if [ "$TV_OK" = 1 ] && [ -n "$TV_BIN" ]; then ok "controle $("$TV_BIN" --versao) instalado: comando tv"; else bad "controle não instalou (veja as mensagens acima)"; fi
-if [ "$TD_OK" = 1 ] && [ -n "$TD_BIN" ]; then ok "jogo $("$TD_BIN" --versao) instalado: comando td"; else bad "jogo não instalou (veja as mensagens acima)"; fi
+TV_BIN=""; TD_BIN=""
+if [ "$DO_TV" = 1 ]; then
+  TV_BIN="$(find_cmd tv)"
+  if [ "$TV_OK" = 1 ] && [ -n "$TV_BIN" ]; then ok "controle $("$TV_BIN" --versao) instalado: comando tv"; else bad "controle não instalou (veja as mensagens acima)"; fi
+fi
+if [ "$DO_TD" = 1 ]; then
+  TD_BIN="$(find_cmd td)"
+  if [ "$TD_OK" = 1 ] && [ -n "$TD_BIN" ]; then ok "jogo $("$TD_BIN" --versao) instalado: comando td"; else bad "jogo não instalou (veja as mensagens acima)"; fi
+fi
 IR_OK=0
 if [ -n "$TV_BIN" ] && is_termux; then
   if diag="$(timeout 15 "$TV_BIN" --diagnostico 2>&1)"; then diag="${diag%%$'\n'*}"; ok "${diag#OK   }"; IR_OK=1; else bad "${diag#ERRO }"; fi
 fi
 
 printf '\n%s  ROTEIRO DE TESTE%s\n' "$B" "$N"
-printf '  %s📺 Controle%s\n' "$B" "$N"
-if [ "$IR_OK" = 1 ]; then
-  printf '   1. digite %stv%s e toque na marca da sua TV\n' "$B" "$N"
-else
-  printf '   1. resolva o aviso do emissor acima; enquanto isso: %stv --simular%s\n' "$B" "$N"
+if [ "$DO_TV" = 1 ]; then
+  printf '  %s📺 Controle%s\n' "$B" "$N"
+  if [ "$IR_OK" = 1 ]; then
+    printf '   1. digite %stv%s e toque na marca da sua TV\n' "$B" "$N"
+  else
+    printf '   1. resolva o aviso do emissor acima; enquanto isso: %stv --simular%s\n' "$B" "$N"
+  fi
+  printf '   2. aponte o topo do celular para a TV e toque em LIGAR\n'
+  printf '   3. teste VOL, MUDO, CH, números, setas e OK\n'
+  printf '   4. se a marca não reagir: tecla %sd%s (descobrir)\n' "$B" "$N"
 fi
-printf '   2. aponte o topo do celular para a TV e toque em LIGAR\n'
-printf '   3. teste VOL, MUDO, CH, números, setas e OK\n'
-printf '   4. se a marca não reagir: tecla %sd%s (descobrir)\n' "$B" "$N"
-printf '  %s🏰 Tower Defense%s\n' "$B" "$N"
-printf '   1. digite %std%s e abra o Tutorial (tela cheia, celular em pé)\n' "$B" "$N"
-printf '   2. jogue só com toques; anote a onda em que perdeu\n'
-printf '   3. menu → Criar mapa: entrada, cantos da trilha, base, ▶ Testar\n'
-printf '   4. Opções → Ajustar tela: confira a régua; ative tela cheia e fonte\n'
-printf '   5. se os emojis desalinharem: Opções → Emojis: NÃO\n'
-printf '\n  %sRoteiros completos:%s\n' "$D" "$N"
-printf '  %s%s/controle-tv/docs/ROADMAP.md%s\n' "$D" "$REPO_WEB" "$N"
-printf '  %s%s/tower-defense/docs/ROADMAP.md%s\n\n' "$D" "$REPO_WEB" "$N"
-[ "$TV_OK" = 1 ] && [ "$TD_OK" = 1 ]
+if [ "$DO_TD" = 1 ]; then
+  printf '  %s🏰 Tower Defense%s\n' "$B" "$N"
+  printf '   1. digite %std%s e abra o Tutorial (tela cheia, celular em pé)\n' "$B" "$N"
+  printf '   2. jogue só com toques; anote a onda em que perdeu\n'
+  printf '   3. menu → Criar mapa: entrada, cantos da trilha, base, ▶ Testar\n'
+  printf '   4. Opções → Ajustar tela: confira a régua; ative tela cheia e fonte\n'
+  printf '   5. se os emojis desalinharem: Opções → Emojis: NÃO\n'
+fi
+if [ "$DO_TV" = 1 ] && [ "$DO_TD" = 1 ]; then printf '\n  %sRoteiros completos:%s\n' "$D" "$N"; else printf '\n  %sRoteiro completo:%s\n' "$D" "$N"; fi
+[ "$DO_TV" = 1 ] && printf '  %s%s/controle-tv/docs/ROADMAP.md%s\n' "$D" "$REPO_WEB" "$N"
+[ "$DO_TD" = 1 ] && printf '  %s%s/tower-defense/docs/ROADMAP.md%s\n' "$D" "$REPO_WEB" "$N"
+echo
+{ [ "$DO_TV" = 0 ] || [ "$TV_OK" = 1 ]; } && { [ "$DO_TD" = 0 ] || [ "$TD_OK" = 1 ]; }

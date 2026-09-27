@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Instala o PVN (controle da TV + Tower Defense) a partir do pack zip salvo
-# na pasta Download do celular.
+# Instala o PVN (controle da TV + Tower Defense, ou só o jogo num pack "td") a
+# partir do pack zip salvo na pasta Download do celular.
 #
 #   termux-setup-storage                          (uma vez: toque em Permitir)
 #   bash ~/storage/downloads/instalar-pack.sh     (se este arquivo também está no Download)
