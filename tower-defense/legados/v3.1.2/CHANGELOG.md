@@ -2,21 +2,6 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versionamento semântico.
 
-## [3.2.0] — 2026-09-27
-
-Barra de teclas do jogo automática e sem ficar presa no Termux. A 3.1.2 está em `legados/v3.1.2/`.
-
-### Mudado
-- **Barra do jogo automática:** com o Teclado Termux instalado (comando `teclas`), o `td` põe a barra do jogo ao abrir e devolve a anterior ao fechar, inclusive com Ctrl+C. A barra nova tem 🏹 💣 🔮 🌀, ⏫ melhorar, 💲 vender, ONDA, ⏩, 🎯 mira, `||` pausa, setas, OK e o teclado. Os comandos sem tela (`--gerar`, `--validar` etc.) não mexem na barra.
-- **Instalador:**
-  - Não troca mais a barra do Termux pela do jogo. Antes ela ficava fixa até a desinstalação.
-  - `--teclas` e `--sem-teclas` continuam aceitos; `--teclas` avisa que, para fixar a barra, o comando é `teclas jogo`.
-  - A barra fixada por uma instalação anterior é reconhecida pelo `teclas`, que devolve a sua barra de antes.
-
-### Testes
-- **Tela:** 4 testes novos (99 no total): barra pedida ao abrir, devolvida ao sair pelo menu e com Ctrl+C, e comandos sem tela sem troca.
-- **Instalador:** seção da barra refeita (29 no total). A barra da pessoa fica intacta, sem backup desnecessário.
-
 ## [3.1.2] — 2026-09-27
 
 Correções da auditoria de 2026-09-27.

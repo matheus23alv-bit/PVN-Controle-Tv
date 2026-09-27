@@ -243,5 +243,19 @@ check "Pausa mostra o mapa pedido" 'screen | grep -q "Mapa: Aleatório 7"'
 HOMEX=cli start 46 50 "python3 td.py --editor Rio"
 check "--editor MAPA_PRONTO edita uma cópia" 'screen | grep -q "EDITOR · Rio (cópia)" && screen | grep -q "✔ Pronto para jogar"'
 
+echo "== Barra de teclas do jogo (comando teclas)"
+mkdir -p "$WORK/fake"
+printf '#!/bin/sh\necho "$*" >> "%s/teclas.log"\n' "$WORK" > "$WORK/fake/teclas"; chmod +x "$WORK/fake/teclas"
+HOMEX=kb start 46 50 "PATH='$WORK/fake:$PATH' python3 td.py"
+sleep .5
+check "Ao abrir, pede a barra do jogo ao teclas" 'grep -q -x -e "--entrar jogo" "$WORK/teclas.log"'
+tap "Sair"; sleep .6
+check "Ao sair pelo menu, devolve a barra anterior" '! alive && tail -1 "$WORK/teclas.log" | grep -q -x -e "--sair"'
+HOMEX=kb start 46 50 "PATH='$WORK/fake:$PATH' python3 td.py --jogar"
+tmux send-keys -t tdt C-c; sleep .8
+check "Ctrl+C no meio da partida também devolve a barra" '[ "$(grep -c -x -e "--sair" "$WORK/teclas.log")" = 2 ]'
+PATH="$WORK/fake:$PATH" python3 "$SRC/td.py" --gerar 9x15 1 >/dev/null
+check "Comandos sem tela (--gerar) não trocam a barra" '[ "$(wc -l < "$WORK/teclas.log")" = 4 ]'
+
 echo; echo "$pass aprovados, $fail falhas"
 [ "$fail" -eq 0 ]

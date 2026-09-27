@@ -15,18 +15,7 @@ curl -fsSL https://raw.githubusercontent.com/matheus23alv-bit/PVN-Controle-Tv/HE
 
 Ou, com esta pasta já no celular: `bash instalar.sh`.
 
-O instalador confere o Python (instala se faltar) e cria os comandos `td` e `tower-defense`. No Termux, ele pergunta se pode deixar o Termux em tela cheia e instalar a fonte do jogo. As duas mudanças são feitas com backup. No fim, ele oferece abrir o tutorial. Depois é só digitar `td`.
-
-## Barra de teclas do jogo
-
-Com o **Teclado Termux** instalado (comando `teclas`, que vem no pack e no `setup-teste.sh` da raiz), o `td` põe a barra do jogo ao abrir e devolve a sua ao fechar:
-
-```
-ESC  🏹  💣  🔮  🌀  ⏫  💲   ↑   OK
- ||  ONDA ⏩  🎯   ?   ⌨   ←   ↓   →
-```
-
-Fora do jogo, a barra do Termux continua a que você escolheu com `teclas`. Sem o Teclado Termux, o jogo funciona igual pelo toque.
+O instalador confere o Python (instala se faltar) e cria os comandos `td` e `tower-defense`. No Termux, ele pergunta se pode trocar a barra de teclas extras por uma feita para o jogo, deixar o Termux em tela cheia e instalar a fonte do jogo. Tudo é feito com backup. No fim, ele oferece abrir o tutorial. Depois é só digitar `td`.
 
 Para atualizar, rode o instalador de novo. Para desinstalar: `bash ~/.local/share/tower-defense/instalar.sh --remover`. Sem instalar: `python td.py` nesta pasta.
 

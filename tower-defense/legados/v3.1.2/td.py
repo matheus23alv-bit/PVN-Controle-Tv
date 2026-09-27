@@ -3162,27 +3162,11 @@ def main(argv=None):
     locale.setlocale(locale.LC_ALL, "")
     emoji = False if "--sem-emoji" in args else None
     touch = False if "--sem-toque" in args else None
-    teclas("--entrar", "jogo")
     try:
         curses.wrapper(lambda scr: App(scr, emoji, touch, start, start_map).run())
     except KeyboardInterrupt:
         return 130  # Ctrl+C: sai sem despejar erro na tela
-    finally:
-        teclas("--sair")
     return 0
-
-
-def teclas(*args):
-    """Barra de teclas do jogo no Termux: o comando teclas (Teclado Termux) troca e devolve, se instalado."""
-    exe = shutil.which("teclas")
-    if not exe:
-        return
-    try:
-        # sem esperar: o Termux leva até 1 s para recarregar a barra, e o jogo abre (ou o prompt volta) antes
-        subprocess.Popen([exe, *args], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                         stderr=subprocess.DEVNULL, start_new_session=True)
-    except OSError:
-        pass
 
 
 if __name__ == "__main__":

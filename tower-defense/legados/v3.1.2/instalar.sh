@@ -4,11 +4,11 @@
 #   bash instalar.sh               instala a partir desta pasta
 #   curl -fsSL <url>/instalar.sh | bash      instala baixando do GitHub
 #
-# Opcoes: --tela-cheia / --sem-tela-cheia    esconde as barras do Android e tira a margem lateral
+# Opcoes: --teclas / --sem-teclas            barra de teclas do jogo no Termux, sem perguntar
+#         --tela-cheia / --sem-tela-cheia    esconde as barras do Android e tira a margem lateral
 #         --fonte / --sem-fonte              fonte DejaVu Sans Mono no Termux (★ e barras sem falhas)
 #         --so-tela                          aplica so as opcoes do Termux, sem reinstalar o jogo
 #         --remover                          desinstala e devolve a configuracao original do Termux
-# A barra de teclas do jogo e do comando teclas (Teclado Termux): entra ao abrir o td e sai ao fechar.
 set -euo pipefail
 
 REPO_RAW="${TD_REPO_RAW:-https://raw.githubusercontent.com/matheus23alv-bit/PVN-Controle-Tv/HEAD/tower-defense/source}"
@@ -16,6 +16,7 @@ APP_DIR="${TD_HOME:-$HOME/.local/share/tower-defense}"
 PROPS="$HOME/.termux/termux.properties"
 PROPS_BACKUP="$HOME/.termux/termux.properties.antes-do-td"
 MARKER="# instalado pelo tower-defense"
+EXTRA_KEYS="[['ESC','1','2','3','4','u','x','UP','ENTER'],['p','n','f','h','q','KEYBOARD','LEFT','DOWN','RIGHT']]"
 FULL_PROPS=("fullscreen=true" "use-fullscreen-workaround=true" "terminal-margin-horizontal=0")
 FONT_NAME="DejaVuSansMono.ttf"
 FONT="$HOME/.termux/font.ttf"
@@ -60,7 +61,7 @@ for arg in "$@"; do
     --sem-fonte) FONT_MODE="no" ;;
     --so-tela) ACTION="screen" ;;
     --remover|--desinstalar) ACTION="remove" ;;
-    -h|--ajuda) sed -n '2,12p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--ajuda) sed -n '2,13p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) die "opcao desconhecida: $arg" ;;
   esac
 done
@@ -174,15 +175,14 @@ reload_termux() {
 }
 
 termux_setup() {  # passo das opcoes do Termux: teclas, tela cheia e fonte ("keep": nao mexe)
-  # a barra de teclas nao e mais fixada aqui: o comando teclas (Teclado Termux) poe a do jogo so com o td aberto
   if [ "$KEYS_MODE" = "keep" ]; then
     :
-  elif command -v teclas >/dev/null 2>&1; then
-    ok "barra de teclas do jogo: entra ao abrir o td e sai ao fechar (teclas)"
+  elif [ "$KEYS_MODE" = "yes" ] || { [ "$KEYS_MODE" = "ask" ] && ask "Trocar a barra de teclas extras por uma feita para o jogo?"; }; then
+    set_props "extra-keys=$EXTRA_KEYS"; SUMMARY+=("barra de teclas do jogo")
+    ok "barra de teclas do jogo ativada"
   else
-    ok "barra de teclas do jogo: instale o Teclado Termux (comando teclas)"
+    ok "barra de teclas mantida como esta"
   fi
-  [ "$KEYS_MODE" = "yes" ] && warn "--teclas nao fixa mais a barra; para fixar: teclas jogo"
   if [ "$FULL_MODE" = "keep" ]; then
     :
   elif [ "$FULL_MODE" = "no" ]; then

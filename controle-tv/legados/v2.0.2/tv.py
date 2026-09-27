@@ -14,7 +14,6 @@ import locale
 import os
 import queue
 import re
-import shutil
 import subprocess
 import sys
 import threading
@@ -395,12 +394,6 @@ class Transmitter:
         return True, f"emissor IR pronto ({lo}-{hi} kHz)", ranges
 
 
-# teclas que o Termux repete quando seguradas (VOL pela barra da TV do teclas: PGUP e PGDN)
-REPEATABLE = {"vol_up", "vol_down", "ch_up", "ch_down", "up", "down", "left", "right"}
-HELD = 0.15    # dois toques mais próximos que isso são a tecla segurada (o Termux repete a cada ~0,08 s)
-MAX_QUEUED = 3  # nunca mais que isso na fila para a mesma tecla repetível
-
-
 class Worker:
     """Envia os sinais fora do laco da tela: o Termux:API leva ~0,3 s por chamada."""
 
@@ -408,33 +401,7 @@ class Worker:
         self.tx = tx
         self.jobs = queue.Queue()
         self.results = queue.Queue()
-        self.pending = {}  # tecla -> envios na fila ou saindo agora
-        self.lock = threading.Lock()
         threading.Thread(target=self._run, daemon=True).start()
-
-    def queued(self, key):
-        with self.lock:
-            return self.pending.get(key, 0)
-
-    def submit(self, key, label, freq, pattern, held=False):
-        """Põe o envio na fila. Tecla segurada só entra quando a anterior saiu: o volume para ao soltar."""
-        if key in REPEATABLE and ((held and self.queued(key)) or self.queued(key) >= MAX_QUEUED):
-            return False
-        with self.lock:
-            self.pending[key] = self.pending.get(key, 0) + 1
-        self.jobs.put(("send", label, freq, pattern, key))
-        return True
-
-    def _done(self, job):
-        key = job[4] if len(job) > 4 else None
-        if key is None:
-            return
-        with self.lock:
-            n = self.pending.get(key, 0) - 1
-            if n > 0:
-                self.pending[key] = n
-            else:
-                self.pending.pop(key, None)
 
     def check(self):
         # thread propria: sem o app Termux:API a verificacao trava ate o timeout e nao pode atrasar os botoes
@@ -442,16 +409,14 @@ class Worker:
 
     def _run(self):
         while True:
-            job = self.jobs.get()
-            label, freq, pattern = job[1:4]
+            _, label, freq, pattern = self.jobs.get()
             ok, msg = self.tx.send(freq, pattern)
-            self._done(job)
             dropped = 0
             if self.tx.stuck:
                 # cada toque esperaria o mesmo tempo limite: descarta os que se acumularam
                 while True:
                     try:
-                        self._done(self.jobs.get_nowait())
+                        self.jobs.get_nowait()
                         dropped += 1
                     except queue.Empty:
                         break
@@ -478,7 +443,6 @@ KEYMAP = {
     ord("l"): "power", ord("L"): "power", ord("m"): "mute", ord("M"): "mute", ord("f"): "input",
     ord("+"): "vol_up", ord("="): "vol_up", ord("-"): "vol_down", ord("_"): "vol_down",
     ord("."): "ch_up", ord(">"): "ch_up", ord(","): "ch_down", ord("<"): "ch_down",
-    curses.KEY_PPAGE: "vol_up", curses.KEY_NPAGE: "vol_down",  # VOL+ e VOL- da barra da TV (repetem)
     curses.KEY_UP: "up", curses.KEY_DOWN: "down", curses.KEY_LEFT: "left", curses.KEY_RIGHT: "right",
     10: "ok", 13: "ok", curses.KEY_ENTER: "ok", ord(" "): "ok",
     ord("v"): "back", curses.KEY_BACKSPACE: "back", 127: "back", 8: "back",
@@ -493,7 +457,6 @@ HELP_LINES = (
     "Teclas:",
     "  l ligar     m mudo      f fonte",
     "  + -  volume      . ,  canal",
-    "  PgUp PgDn volume, segure: repete",
     "  setas, Enter=OK, v voltar",
     "  i início  n menu  o info  x exit",
     "  0-9 canal direto",
@@ -534,7 +497,6 @@ class App:
         self.choose_index = 0
         self.choose_top = 0
         self.toggle = 0
-        self.last_press = {}
         self.discover_list, self.discover_i = [], 0
         self.done = False
         self._init_curses()
@@ -573,17 +535,14 @@ class App:
     def press(self, key):
         signal = self.keys().get(key)
         label = KEY_LABELS.get(key, key)
-        now = time.monotonic()
-        held = now - self.last_press.get(key, -1.0) < HELD
-        self.last_press[key] = now
-        self.flash_key, self.flash_until = key, now + 0.18
+        self.flash_key, self.flash_until = key, time.monotonic() + 0.18
         if signal is None:
             self.status, self.status_ok = f"{label}: esta TV não tem esse código", False
             return
-        freq, pattern = encode(signal, self.toggle ^ 1)
-        if self.worker.submit(key, label, freq, pattern, held):
-            self.toggle ^= 1  # RC5/RC6: o bit alterna a cada sinal enviado, não nas repetições descartadas
-            self.status, self.status_ok = f"enviando {label}...", True
+        self.toggle ^= 1
+        freq, pattern = encode(signal, self.toggle)
+        self.worker.jobs.put(("send", label, freq, pattern))
+        self.status, self.status_ok = f"enviando {label}...", True
 
     def choose(self, name):
         self.profile = name
@@ -974,25 +933,8 @@ def cli(argv):
         print(f"TV desconhecida: {profile}. Veja: tv --listar")
         return 2
     locale.setlocale(locale.LC_ALL, "")
-    teclas("--entrar", "tv")
-    try:
-        curses.wrapper(lambda scr: App(scr, simulate, profile).run())
-    finally:
-        teclas("--sair")
+    curses.wrapper(lambda scr: App(scr, simulate, profile).run())
     return 0
-
-
-def teclas(*args):
-    """Barra de teclas da TV no Termux: o comando teclas (Teclado Termux) troca e devolve, se instalado."""
-    exe = shutil.which("teclas")
-    if not exe:
-        return
-    try:
-        # sem esperar: o Termux leva até 1 s para recarregar a barra, e a tela abre (ou o prompt volta) antes
-        subprocess.Popen([exe, *args], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                         stderr=subprocess.DEVNULL, start_new_session=True)
-    except OSError:
-        pass
 
 
 def main():

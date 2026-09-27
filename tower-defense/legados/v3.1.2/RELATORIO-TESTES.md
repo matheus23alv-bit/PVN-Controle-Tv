@@ -1,6 +1,6 @@
-# Relatório — Tower Defense 3.2.0
+# Relatório — Tower Defense 3.1.2
 
-Data: 2026-09-27 (a 3.1.x em 2026-09-26) · Python 3.11 · terminal real via `tmux` em retrato de celular (46×50, 32×30, 32×26 e 30×26) com 256 cores. Telas conferidas em imagem com a fonte de emoji do Android (Noto Color Emoji). As capturas estão em `docs/capturas/`.
+Data: 2026-09-26 · Python 3.11 · terminal real via `tmux` em retrato de celular (46×50, 32×30, 32×26 e 30×26) com 256 cores. Telas conferidas em imagem com a fonte de emoji do Android (Noto Color Emoji). As capturas estão em `docs/capturas/`.
 
 ## Pedido e entrega
 
@@ -18,24 +18,10 @@ Os quatro pacotes propostos foram implementados.
 | Bateria | Resultado |
 |---|---|
 | Lógica (`test_logica.py`) | 75 / 75 |
-| Tela (`test_terminal.sh`) | 99 / 99 |
+| Tela (`test_terminal.sh`) | 95 / 95 |
 | Instalador (`test_instalador.sh`) | 29 / 29 |
-| Controle da TV 2.1.0: IR, tela, instalador | 31 / 31 · 39 / 39 · 9 / 9 |
-| Teclado Termux 1.0.0: unidade, tela, instalador | 29 / 29 · 21 / 21 · 19 / 19 |
-| Pack (`testes/test_pack.sh`, raiz) | 37 / 37 |
-
-### Novo na 3.2.0: barra de teclas do jogo
-
-- **Pelo menu:** o `td` chama `teclas --entrar jogo` ao abrir e `teclas --sair` ao sair.
-- **Com Ctrl+C:** a barra também volta.
-- **Comandos sem tela** (`--gerar`, `--validar` etc.): não trocam a barra.
-- **Instalador:** não mexe mais na barra do Termux.
-  - O `termux.properties` da pessoa fica idêntico, sem backup.
-  - `--teclas` avisa como fixar a barra (`teclas jogo`).
-- **No pack completo, com o `teclas` de verdade:**
-  - abrir o `td` grava a barra do jogo;
-  - fechar volta ao padrão melhorado;
-  - a mesma troca vale para o `tv`.
+| Controle da TV 2.0.2: IR, tela, instalador | 25 / 25 · 30 / 30 · 9 / 9 |
+| Pack (`testes/test_pack.sh`, raiz) | 18 / 18 |
 
 ### O que os testes novos garantem
 

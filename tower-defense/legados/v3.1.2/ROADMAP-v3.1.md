@@ -1,6 +1,6 @@
 # Tower Defense — roteiro de teste e próximos passos
 
-## Roteiro de teste no seu celular (3.2.0)
+## Roteiro de teste no seu celular (3.1.2)
 
 Faça na ordem, com o celular em pé, e anote o que aparecer diferente do esperado.
 
@@ -19,8 +19,6 @@ Faça na ordem, com o celular em pé, e anote o que aparecer diferente do espera
 | 11 | Toque nos botões | Cada botão pisca ao toque |
 | 12 | Opções: desligue Números de dano e Vibrar | Somem os números e a vibração |
 | 13 | Ajustar tela: Tirar tela cheia e Tirar a fonte | O Termux volta ao que era |
-| 14 | Abra o `td` e olhe a barra de teclas do Termux | É a barra do jogo (🏹 💣 🔮 🌀 ⏫ 💲 ONDA ⏩ 🎯) |
-| 15 | Saia do jogo | A barra volta a ser a sua (ou o padrão melhorado, se escolheu no `teclas`) |
 
 Me diga também em que onda você perdeu em cada mapa pronto: é o dado que falta para confirmar a dificuldade.
 

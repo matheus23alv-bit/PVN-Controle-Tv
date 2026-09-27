@@ -35,23 +35,6 @@ Para atualizar, rode o instalador de novo. Para desinstalar: `bash ~/.local/shar
 
 O rodapé confirma cada envio (`✓ Volume + enviado`) ou diz o que deu errado.
 
-## TV LG
-
-A LG vem embutida, com os 27 botões da tela conferidos um a um contra os códigos publicados da marca. Eles usam o protocolo NEC, com endereço 04; o LIGAR é `20DF10EF`. São os códigos do controle infravermelho comum da LG, que também valem para as Smart TV com webOS. O Magic Remote dessas TVs usa Bluetooth, mas a TV continua obedecendo ao infravermelho.
-
-Para usar: `tv`, toque em **LG** e aponte o topo do celular para a TV. Se a TV não reagir, confira `tv --diagnostico` e a distância, de até uns 3 metros.
-
-## Barra de teclas da TV
-
-Com o **Teclado Termux** instalado (comando `teclas`, que vem no pack e no `setup-teste.sh`), o `tv` troca a barra de teclas extras do Termux pela da TV ao abrir e devolve a anterior ao fechar:
-
-```
-SAIR  LIGAR  MUDO  FONTE  VOL+  CH+  VOLTAR  ↑   OK
- ⌨   INÍCIO  MENU  INFO   VOL-  CH-    ←     ↓   →
-```
-
-**Segure VOL+ ou VOL− para o volume subir ou descer sem parar.** Ao soltar, ele para na hora: o controle só manda o sinal seguinte quando o anterior terminou. Para desligar a troca automática: `teclas --auto nao`.
-
 ## Outras marcas (Philco, TCL, AOC, Semp...)
 
 Baixe o arquivo `.ir` do seu modelo no banco público **Flipper-IRDB** (pasta `TVs/<marca>`), salve no celular e importe:
@@ -81,7 +64,7 @@ Os botões com nomes padrão (Power, Vol_up, Vol_dn, Ch_next, Ch_prev, Mute, Inp
 | Tecla | Botão | Tecla | Botão |
 |---|---|---|---|
 | `l` | Ligar/desligar | `m` | Mudo |
-| `+` `-`, PgUp PgDn | Volume (PgUp e PgDn repetem ao segurar) | `.` `,` | Canal |
+| `+` `-` | Volume | `.` `,` | Canal |
 | Setas, Enter | Navegação, OK | `v` | Voltar |
 | `i` / `n` | Início / Menu | `f` | Fonte |
 | `0`–`9` | Números | `t` / `d` | Trocar TV / Descobrir |

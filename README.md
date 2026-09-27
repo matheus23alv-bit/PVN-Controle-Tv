@@ -1,11 +1,12 @@
 # PVN Workspace
 
-Este repositório contém dois projetos independentes. Cada um tem seu próprio pacote de código, versão, histórico e testes; nada é compartilhado entre eles.
+Este repositório contém três projetos independentes. Cada um tem seu próprio pacote de código, versão, histórico e testes. Nada é compartilhado entre eles: o controle e o jogo só chamam o comando `teclas` se ele existir.
 
 | Projeto | O que é | Rodar |
 |---|---|---|
 | [`controle-tv/`](controle-tv/source/LEIA-ME.md) | Controle remoto de TV pelo infravermelho do celular, no terminal do Termux (Python) | `tv` depois de instalar |
 | [`tower-defense/`](tower-defense/source/LEIA-ME.md) | Jogo tower defense de terminal para Termux, em tela cheia no celular em pé, com criador de mapas (Python) | `td` depois de instalar |
+| [`teclado-termux/`](teclado-termux/source/LEIA-ME.md) | Barras de teclas extras do Termux: padrão melhorado, jogo e TV, que trocam sozinhas ao abrir o `td` e o `tv`, com volta à sua barra de antes (Python) | `teclas` depois de instalar |
 
 ## Teste completo em um comando
 
@@ -15,7 +16,7 @@ No Termux (com o app **Termux:API** do F-Droid já instalado e aberto uma vez):
 curl -fsSL https://raw.githubusercontent.com/matheus23alv-bit/PVN-Controle-Tv/HEAD/setup-teste.sh | bash
 ```
 
-Instala os dois projetos, confere o emissor infravermelho do celular e mostra o roteiro de teste. Cada projeto também tem seu instalador próprio, descrito no LEIA-ME dele.
+Instala os três projetos, confere o emissor infravermelho do celular e mostra o roteiro de teste. Cada projeto também tem seu instalador próprio, descrito no LEIA-ME dele.
 
 ## Pelo pack zip (sem baixar do GitHub)
 
@@ -26,7 +27,7 @@ termux-setup-storage
 bash ~/storage/downloads/instalar-pack.sh
 ```
 
-O primeiro comando só é preciso uma vez: toque em **Permitir** na janela do Android. O instalador pega o pack mais recente da pasta Download (aceita nomes como `... (1).zip`), confere o SHA-256 de cada arquivo, extrai em `~/pvn-pack` e instala controle e jogo a partir dele. Com internet, dá para rodar o instalador sem salvá-lo:
+O primeiro comando só é preciso uma vez: toque em **Permitir** na janela do Android. O instalador pega o pack mais recente da pasta Download (aceita nomes como `... (1).zip`), confere o SHA-256 de cada arquivo, extrai em `~/pvn-pack` e instala teclado, controle e jogo a partir dele. Com internet, dá para rodar o instalador sem salvá-lo:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/matheus23alv-bit/PVN-Controle-Tv/HEAD/instalar-pack.sh | bash
@@ -50,6 +51,6 @@ Para gerar um pack: `bash empacotar.sh [pasta] [commit] [tudo|td]`. Com `td`, sa
 └── docs/       relatório de testes e roadmap da próxima versão
 ```
 
-Na raiz: `setup-teste.sh` (instala os dois projetos, ou só o que vier no pack), `instalar-pack.sh` (instala a partir do pack zip), `empacotar.sh` (gera o pack), `testes/test_pack.sh` (testa os três) e `testes/captura.sh` (captura a tela do tmux em PNG para revisão visual).
+Na raiz: `setup-teste.sh` (instala os três projetos, ou só o que vier no pack), `instalar-pack.sh` (instala a partir do pack zip), `empacotar.sh` (gera o pack), `testes/test_pack.sh` (testa os três) e `testes/captura.sh` (captura a tela do tmux em PNG para revisão visual).
 
 Para publicar ou copiar um projeto, basta a pasta `source/` dele. O número de versão fica somente em `source/VERSION`.
