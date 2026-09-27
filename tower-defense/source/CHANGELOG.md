@@ -2,6 +2,21 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versionamento semântico.
 
+## [3.1.2] — 2026-09-27
+
+Correções da auditoria de 2026-09-27.
+
+### Corrigido
+- O gerador de mapas falhava em mapas com 5 casas de largura ou altura, que o formato aceita. Com um mapa desses aberto no editor, tocar em 🎲 Gerar fechava o jogo com erro. Agora esses tamanhos recebem uma trilha em zigue-zague, e o editor mostra uma mensagem em vez de cair se algo der errado.
+- Um `config.json` com tipos errados (ex.: editado à mão, `"recordes"` como lista) impedia o jogo de abrir. Agora os valores inválidos são descartados na leitura.
+- Ctrl+C despejava um erro técnico (KeyboardInterrupt) no terminal. Agora o jogo sai limpo, com código 130, como o controle.
+- No editor, com a tela pequena demais (ex.: teclado aberto), tocar `q` fechava o jogo e perdia o mapa sem salvar. Agora `q` não fecha enquanto houver mudanças sem salvar, e o aviso diz "Mapa sem salvar: aumente a tela para salvar".
+- Se o Termux:API travasse durante uma vibração, o processo ficava solto depois de sair do jogo. Agora ele é encerrado na saída.
+- Mensagem do gerador no editor com versão curta, para caber em telas estreitas.
+
+### Testes
+- 4 testes de lógica novos (75 no total) e 5 de tela (95 no total).
+
 ## [3.1.1] — 2026-09-26
 
 ### Corrigido

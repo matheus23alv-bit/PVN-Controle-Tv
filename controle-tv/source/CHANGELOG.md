@@ -2,6 +2,20 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versionamento semântico.
 
+## [2.0.2] — 2026-09-27
+
+Correções da auditoria de 2026-09-27.
+
+### Corrigido
+- TVs Philips (RC5/RC6, perfis importados): o bit de alternância ficava sempre em 0. A norma pede que ele mude a cada toque, e a TV usa isso para separar um toque novo de uma tecla segurada, então um "1" logo depois de outro "1" podia ser ignorado. Agora ele alterna a cada toque na tela e também entre execuções de `tv <botão>` (guardado na configuração).
+- Sem o app Termux:API, cada toque esperava 10 s até falhar e os toques se acumulavam na fila, deixando a tela em "enviando..." por minutos. Depois de uma falha dessas, os toques acumulados são descartados e o aviso diz quantos.
+- Com muitas TVs importadas, a lista de escolha não rolava e as que passavam do fim da tela não podiam ser vistas. Agora a lista acompanha a seleção, com ▲ e ▼ indicando que há mais.
+- Uma TV importada com o nome de uma marca embutida (ex.: "Samsung") aparecia como "embutido". Agora aparece como "importado".
+- `tv --perfil X ligar` com uma TV X que não existe dizia "Nenhuma TV escolhida". Agora diz "TV desconhecida: X".
+
+### Testes
+- 5 testes de unidade novos (25 no total) e 3 de tela (30 no total).
+
 ## [2.0.1] — 2026-09-26
 
 ### Corrigido

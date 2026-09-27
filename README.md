@@ -34,6 +34,11 @@ curl -fsSL https://raw.githubusercontent.com/matheus23alv-bit/PVN-Controle-Tv/HE
 
 Para gerar um pack: `bash empacotar.sh [pasta] [commit]`.
 
+## Estado do projeto e continuidade
+
+- [`CHECKPOINT.md`](CHECKPOINT.md): estado atual, mapa do código, decisões, pendências e o prompt para continuar em outra sessão.
+- [`docs/AUDITORIA-2026-09-27.md`](docs/AUDITORIA-2026-09-27.md): última auditoria completa (problemas achados, correções e testes).
+
 ## Estrutura de cada projeto
 
 ```
@@ -44,6 +49,6 @@ Para gerar um pack: `bash empacotar.sh [pasta] [commit]`.
 └── docs/       relatório de testes e roadmap da próxima versão
 ```
 
-Na raiz: `setup-teste.sh` (instala os dois projetos), `instalar-pack.sh` (instala a partir do pack zip), `empacotar.sh` (gera o pack) e `testes/test_pack.sh` (testa os três).
+Na raiz: `setup-teste.sh` (instala os dois projetos), `instalar-pack.sh` (instala a partir do pack zip), `empacotar.sh` (gera o pack), `testes/test_pack.sh` (testa os três) e `testes/captura.sh` (captura a tela do tmux em PNG para revisão visual).
 
 Para publicar ou copiar um projeto, basta a pasta `source/` dele. O número de versão fica somente em `source/VERSION`.

@@ -740,6 +740,7 @@ class TestEfeitos(unittest.TestCase):
         g.towers[spot].last = -999
         g._fire()
         nums = [fx for fx in g.effects if fx.kind == "dmg"]
+        self.assertAlmostEqual(1000 - t.hp, 4, msg="2 tiros de 6 menos o casco de 4")
         self.assertEqual(len(nums), 1)
         self.assertEqual(nums[0].text, "-4")
         self.assertTrue(nums[0].muted, "casco deixa o número cinza")
@@ -797,6 +798,34 @@ class TestTextoCurto(unittest.TestCase):
         e = error_of(mapa("S#####....", "........#.", ".B#######.", "..........", ".........."))
         self.assertEqual(e.short, "Sem saída: c6 l1")
         self.assertLessEqual(td.text_width(" ✘ " + e.short), 30)
+
+
+class TestAuditoria(unittest.TestCase):
+    """Problemas achados na auditoria de 2026-09-27."""
+
+    def test_gerador_cobre_todos_os_tamanhos_aceitos(self):
+        for w in (5, 6, 7, 12, 24):
+            for h in (5, 6, 9, 20, 40):
+                m = td.generate_map(w, h, 1)
+                self.assertIsNone(m.check()[1], (w, h))
+                self.assertEqual((m.w, m.h), (w, h))
+
+    def test_zigue_zague_de_mapas_estreitos(self):
+        self.assertEqual(td._zigzag(5, 5), [list("S####"), list("....#"), list("#####"), list("#...."),
+                                            list("####B")])
+        for w, h in ((5, 6), (6, 5), (5, 40), (24, 5)):
+            self.assertIsNone(td.Mapa(td._zigzag(w, h)).check()[1], (w, h))
+
+    def test_editor_gera_em_mapa_pequeno_importado(self):
+        ed = td.Editor(td.Mapa(["S####", "....#", "B####", ".....", "....."], "x"))
+        ed.generate(4)
+        self.assertIsNone(ed.mapa.check()[1])
+
+    def test_configuracao_com_tipos_errados_nao_derruba(self):
+        cfg = td.clean_config({"recordes": {"a": {"onda": 3, "abates": 9}, "b": "lixo", "c": {"abates": 1}},
+                               "mapa": 5, "emoji": "sim", "toque": False, "outra": [1]})
+        self.assertEqual(cfg, {"recordes": {"a": {"onda": 3, "abates": 9}}, "toque": False, "outra": [1]})
+        self.assertEqual(td.clean_config({"recordes": [1, 2]}), {})
 
 
 class TestTela(unittest.TestCase):

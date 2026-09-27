@@ -1,5 +1,9 @@
 # Convenções do PVN Workspace
 
+## Início de sessão
+
+Leia `CHECKPOINT.md` (estado atual, mapa do código, decisões tomadas, pendências e próximos passos) antes de mexer no projeto. Ao fechar um ciclo grande, atualize o checkpoint.
+
 ## Entrega (obrigatório em toda entrega ao usuário)
 
 1. **Merge** da atualização no branch principal do repositório (`claude/tv-remote-control-app-lu248i`, o default) por PR, depois de rodar os testes abaixo.
@@ -29,3 +33,5 @@ bash testes/test_pack.sh   # na raiz: empacotar.sh, instalar-pack.sh e setup-tes
 ```
 
 Os testes de tela precisam de `tmux`. O controle é testado com o Termux:API falso de `controle-tv/testes/mock-termux-api/`.
+
+Revisão visual: `bash testes/captura.sh <sessão-tmux> <nome>` gera um PNG da tela (ver `CHECKPOINT.md`, seção 5).

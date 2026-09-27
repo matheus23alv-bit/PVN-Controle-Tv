@@ -1,13 +1,13 @@
 # PVN Controle TV — roteiro de teste e próximos passos
 
-## Roteiro de teste no seu celular (2.0.0)
+## Roteiro de teste no seu celular (2.0.2)
 
 Faça na ordem e anote o que aparecer diferente do esperado.
 
 | # | Faça | Esperado |
 |---|---|---|
 | 1 | Instale o app Termux:API pelo F-Droid e abra uma vez | O app abre e fecha (não tem tela própria) |
-| 2 | Rode o instalador | Termina com "PVN Controle TV 2.0.0 instalado" e a etapa 4 diz "emissor IR pronto" |
+| 2 | Rode o instalador | Termina com "PVN Controle TV 2.0.2 instalado" e a etapa 4 diz "emissor IR pronto" |
 | 3 | `tv --diagnostico` | `OK   emissor IR pronto (…kHz)` |
 | 4 | `tv`, toque na marca da sua TV | O controle abre com "TV: <marca>" no topo |
 | 5 | Aponte para a TV e toque em LIGAR | A TV liga ou desliga; o rodapé mostra "✓ Ligar/desligar enviado" |

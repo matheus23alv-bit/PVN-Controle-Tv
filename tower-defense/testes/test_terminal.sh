@@ -136,7 +136,7 @@ tmux send-keys -t tdt -l "Trilha Ágil"; sleep .4
 key Enter
 check "Nome com acento é salvo em arquivo .mapa" 'screen | grep -q "Salvo: Trilha Ágil" && grep -q "nome: Trilha Ágil" "$WORK/h/.config/td-termux/mapas/trilha-agil.mapa"'
 tap "Gerar"
-check "Gerar cria um mapa aleatório pronto para jogar" 'screen | grep -q "Mapa gerado (semente" && screen | grep -q "✔ Pronto para jogar"'
+check "Gerar cria um mapa aleatório pronto para jogar" 'screen | grep -q "Mapa gerado (semente\|Gerado (semente" && screen | grep -q "✔ Pronto para jogar"'
 key q
 check "q abre o menu do editor" 'screen | grep -q "Sair do editor" && screen | grep -q "Tamanho 11×19"'
 tap "Sair do editor"
@@ -210,6 +210,21 @@ start 28 15 "python3 td.py"
 check "Tela pequena avisa com o mínimo" 'screen | grep -q "Tela pequena demais" && screen | grep -q "mínimo 30x12"'
 key q; sleep .3
 check "q sai da tela pequena" '! alive'
+
+echo "== Auditoria: Ctrl+C, tela pequena no editor, gerador em mapa estreito"
+tmux kill-session -t tdt 2>/dev/null; while tmux has-session -t tdt 2>/dev/null; do sleep .1; done
+tmux new-session -d -s tdt -x 46 -y 50 "cd '$SRC' && HOME='$WORK/cc' TERM=xterm-256color python3 td.py --jogar 2> '$WORK/cc.err'; echo \$? > '$WORK/cc.code'; sleep 3"
+sleep 1.2; tmux send-keys -t tdt C-c; sleep 1
+check "Ctrl+C sai limpo, sem erro na tela" '[ "$(cat "$WORK/cc.code" 2>/dev/null)" = 130 ] && ! grep -q Traceback "$WORK/cc.err"'
+start 46 50 "python3 td.py --editor"
+cell 1 0
+tmux resize-window -t tdt -x 46 -y 18 2>/dev/null; sleep .6
+check "Tela pequena no editor avisa do mapa sem salvar" 'screen | grep -q "Mapa sem salvar"'
+key q; sleep .3
+check "q não fecha o editor com mudanças sem salvar" 'alive && screen | grep -q "Mapa sem salvar"'
+tmux resize-window -t tdt -x 46 -y 50 2>/dev/null; sleep .6
+check "Ao crescer, o editor volta com o desenho" 'screen | grep -q "EDITOR" && screen | grep -q "🚪"'
+check "--gerar funciona em mapa de 5 casas" '(cd "$SRC" && python3 td.py --gerar 5x5 1) | grep -q "^####B$"'
 
 echo "== Linha de comando"
 check "--versao lê o VERSION" '[ "$(cd "$SRC" && python3 td.py --versao)" = "$(cat "$SRC/VERSION")" ]'

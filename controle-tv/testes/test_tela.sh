@@ -91,5 +91,16 @@ check "Tela pequena avisa" 'screen | grep -q "Tela pequena demais"'
 start 44 20 "" ""
 check "Tela baixa usa botões de 1 linha" 'screen | grep -q "\[   LIGAR    \]"'
 
+echo "== Muitas TVs importadas (a lista rola)"
+mkdir -p "$WORK/home/.config/pvn-tv/perfis"
+for i in $(seq 1 12); do printf 'Filetype: IR signals file\nVersion: 1\n#\nname: Power\ntype: parsed\nprotocol: NEC\naddress: 04 00 00 00\ncommand: 08 00 00 00\n' > "$WORK/home/.config/pvn-tv/perfis/TV extra $i.ir"; done
+rm -f "$WORK/home/.config/pvn-tv/config.json"
+start 44 24 "" ""
+check "A lista começa pelo topo e indica que há mais" 'screen | grep -q "Samsung" && screen | grep -q "▼" && ! screen | grep -q "TV extra 9"'
+for i in $(seq 1 13); do tmux send-keys -t tvt Down; done; sleep .6
+check "Descer mostra as TVs que estavam fora da tela" 'screen | grep -q "TV extra 8" && screen | grep -q "▲" && ! screen | grep -q "Samsung"'
+key Enter
+check "Escolhe a TV que estava fora da tela" 'line 1 | grep -q "TV: TV extra 8"'
+
 echo; echo "$pass aprovados, $fail falhas"
 [ "$fail" -eq 0 ]
