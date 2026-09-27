@@ -264,5 +264,92 @@ class TestLinhaDeComando(unittest.TestCase):
             self.assertEqual(r.stdout.strip(), f.read().strip())
 
 
+RC5_SAMPLE = """Filetype: IR signals file
+Version: 1
+#
+name: Power
+type: parsed
+protocol: RC5
+address: 00 00 00 00
+command: 0C 00 00 00
+#
+name: 1
+type: parsed
+protocol: RC5
+address: 00 00 00 00
+command: 01 00 00 00
+"""
+
+
+class TestAuditoria(unittest.TestCase):
+    """Problemas achados na auditoria de 2026-09-27."""
+
+    def test_rc5_e_rc6_alternam_o_bit_de_toque(self):
+        s5 = {"protocol": "rc5", "address": 0, "command": 12}
+        a, b = tv.encode(s5, 0)[1], tv.encode(s5, 1)[1]
+        self.assertNotEqual(a, b)
+        self.assertEqual(manchester_bits(a, 889, one_is_rise=True)[2], 0)
+        self.assertEqual(manchester_bits(b, 889, one_is_rise=True)[2], 1)
+        s6 = {"protocol": "rc6", "address": 0, "command": 12}
+        self.assertNotEqual(tv.encode(s6, 0), tv.encode(s6, 1))
+        nec = {"protocol": "nec", "address": 4, "command": 8}
+        self.assertEqual(tv.encode(nec, 0), tv.encode(nec, 1), "NEC não tem bit de alternância")
+
+    def test_linha_de_comando_alterna_o_bit_entre_execucoes(self):
+        with tempfile.TemporaryDirectory() as home:
+            os.makedirs(os.path.join(home, ".config", "pvn-tv", "perfis"))
+            with open(os.path.join(home, ".config", "pvn-tv", "perfis", "Philips.ir"), "w") as f:
+                f.write(RC5_SAMPLE)
+            log = os.path.join(home, "ir.log")
+            env = dict(os.environ, HOME=home, XDG_CONFIG_HOME=os.path.join(home, ".config"), TV_MOCK_LOG=log,
+                       PATH=MOCK + os.pathsep + "/usr/bin:/bin")
+            for _ in range(2):
+                r = subprocess.run([sys.executable, SRC, "--perfil", "Philips", "1"], capture_output=True,
+                                   text=True, env=env, timeout=30)
+                self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            with open(log) as f:
+                first, second = f.read().splitlines()
+            self.assertNotEqual(first, second, "dois toques seguidos do mesmo botão precisam diferir")
+
+    def test_perfil_desconhecido_na_linha_de_comando(self):
+        r, sent = TestLinhaDeComando.run_tv(self, "--perfil", "Philco", "ligar")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("TV desconhecida: Philco", r.stdout)
+        self.assertEqual(sent, "")
+
+    def test_importado_com_nome_de_marca_embutida_aparece_como_importado(self):
+        with tempfile.TemporaryDirectory() as d:
+            old = (tv.CONFIG_DIR, tv.PROFILES_DIR, tv.CONFIG_FILE)
+            tv.CONFIG_DIR, tv.PROFILES_DIR, tv.CONFIG_FILE = d, os.path.join(d, "perfis"), os.path.join(d, "c.json")
+            try:
+                src = os.path.join(d, "x.ir")
+                with open(src, "w") as f:
+                    f.write(FLIPPER_SAMPLE)
+                tv.import_profile(src, "Samsung")
+                self.assertTrue(tv.is_imported("Samsung"))
+                self.assertFalse(tv.is_imported("LG"))
+                self.assertEqual(tv.load_profiles()["Samsung"]["power"]["protocol"], "necext")
+            finally:
+                tv.CONFIG_DIR, tv.PROFILES_DIR, tv.CONFIG_FILE = old
+
+    def test_termux_api_travado_descarta_os_toques_acumulados(self):
+        import time
+
+        class Travado:
+            stuck = False
+
+            def send(self, freq, pattern):
+                time.sleep(0.3)
+                self.stuck = True
+                return False, "Termux:API não respondeu"
+
+        w = tv.Worker(Travado())
+        for i in range(3):
+            w.jobs.put(("send", f"b{i}", 38000, [5]))
+        r = w.results.get(timeout=3)
+        self.assertIn("2 toques descartados", r[3])
+        self.assertTrue(w.jobs.empty())
+
+
 if __name__ == "__main__":
     unittest.main()

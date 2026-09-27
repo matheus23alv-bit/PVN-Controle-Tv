@@ -1,4 +1,4 @@
-# Relatório — Tower Defense 3.1.1
+# Relatório — Tower Defense 3.1.2
 
 Data: 2026-09-26 · Python 3.11 · terminal real via `tmux` em retrato de celular (46×50, 32×30, 32×26 e 30×26) com 256 cores. Telas conferidas em imagem com a fonte de emoji do Android (Noto Color Emoji). As capturas estão em `docs/capturas/`.
 
@@ -17,10 +17,10 @@ Os quatro pacotes propostos foram implementados.
 
 | Bateria | Resultado |
 |---|---|
-| Lógica (`test_logica.py`) | 71 / 71 |
-| Tela (`test_terminal.sh`) | 90 / 90 |
+| Lógica (`test_logica.py`) | 75 / 75 |
+| Tela (`test_terminal.sh`) | 95 / 95 |
 | Instalador (`test_instalador.sh`) | 29 / 29 |
-| Controle da TV (inalterado): IR, tela, instalador | 20 / 20 · 27 / 27 · 9 / 9 |
+| Controle da TV 2.0.2: IR, tela, instalador | 25 / 25 · 30 / 30 · 9 / 9 |
 | Pack (`testes/test_pack.sh`, raiz) | 18 / 18 |
 
 ### O que os testes novos garantem
@@ -66,6 +66,16 @@ Medido em terminal real, na escala 2, com todas as torres atirando em todo quadr
 | 120 torres, 120 monstros, 594 efeitos na tela | 1,83 ms | 6,83 ms | 8,67 ms |
 
 O limite a 20 quadros por segundo é de 50 ms. Os efeitos custam mais que a lógica, mas mesmo o caso extremo usa 17% do limite. Numa partida normal há dezenas de efeitos, não centenas. Parado, o jogo continua sem redesenhar a tela.
+
+## Corrigido na auditoria (3.1.2)
+
+A auditoria de 2026-09-27 (`docs/AUDITORIA-2026-09-27.md` na raiz) achou e corrigiu cinco problemas, cada um com teste de regressão:
+
+- **Gerador:** falhava em mapas de 5 casas, e o botão Gerar do editor derrubava o jogo.
+- **`config.json` com tipos errados:** impedia o jogo de abrir.
+- **Ctrl+C:** despejava um erro técnico no terminal.
+- **`q` com a tela pequena no editor:** fechava o jogo e perdia o mapa sem salvar.
+- **Vibração travada:** ficava rodando depois da saída do jogo.
 
 ## Problemas encontrados e corrigidos durante o desenvolvimento
 

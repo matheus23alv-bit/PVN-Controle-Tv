@@ -121,6 +121,20 @@ def load_config():
         return {}
 
 
+CONFIG_TYPES = {"recordes": dict, "mapa": str, "emoji": bool, "toque": bool, "tutorial_visto": bool,
+                "numeros": bool, "vibrar": bool}
+
+
+def clean_config(cfg):
+    """Descarta valores com tipo errado (arquivo editado à mão ou corrompido) em vez de cair."""
+    out = {k: v for k, v in cfg.items() if k not in CONFIG_TYPES or isinstance(v, CONFIG_TYPES[k])}
+    if "recordes" in out:
+        out["recordes"] = {k: v for k, v in out["recordes"].items()
+                           if isinstance(v, dict) and isinstance(v.get("onda"), int)
+                           and isinstance(v.get("abates", 0), int)}
+    return out
+
+
 def save_config(cfg):
     try:
         os.makedirs(CONFIG_DIR, exist_ok=True)
@@ -401,7 +415,27 @@ def generate_map(w=11, h=19, seed=None, name=None):
         _decorate(m, path, rng)
         m.seed = seed
         return m
-    raise RuntimeError("não consegui gerar um mapa com esse tamanho")
+    # mapas estreitos (5 casas) não comportam as faixas variadas: zigue-zague de ponta a ponta
+    m = Mapa(_zigzag(w, h), name or f"Aleatório {seed}")
+    _, err = m.check()
+    if err:
+        raise RuntimeError(f"não consegui gerar um mapa {w}×{h}: {err.msg}")
+    m.seed = seed
+    return m
+
+
+def _zigzag(W, H):
+    """Faixas em todas as linhas pares, ligadas pelas pontas: cabe em qualquer mapa de 5×5 para cima."""
+    g = [["."] * W for _ in range(H)]
+    last = H - 1 if H % 2 else H - 2
+    for y in range(0, last + 1, 2):
+        for x in range(W):
+            g[y][x] = "#"
+        if y < last:
+            g[y + 1][W - 1 if (y // 2) % 2 == 0 else 0] = "#"
+    g[0][0] = "S"
+    g[last][W - 1 if (last // 2) % 2 == 0 else 0] = "B"
+    return g
 
 
 BUILTIN_TEXT = {
@@ -1303,7 +1337,7 @@ class App:
     def __init__(self, scr, emoji=None, touch=None, start=None, start_map=None):
         self.scr = scr
         self.version = read_version()
-        self.cfg = load_config()
+        self.cfg = clean_config(load_config())
         self.emoji = self.cfg.get("emoji", True) if emoji is None else emoji
         self.touch = self.cfg.get("toque", True) if touch is None else touch
         self.pal = None
@@ -1649,8 +1683,12 @@ class App:
         self.say("Desfeito" if self.ed.undo() else "Nada para desfazer", 1.2)
 
     def ed_generate(self):
-        seed = self.ed.generate()
-        self.say(f"Mapa gerado (semente {seed}). Toque de novo para outro", 2.5)
+        try:
+            seed = self.ed.generate()
+        except RuntimeError as e:
+            self.say(str(e), 3)
+            return
+        self.say(f"Mapa gerado (semente {seed}). Toque de novo para outro", 2.5, f"Gerado (semente {seed})")
 
     def ed_test(self):
         _, err = self.ed.mapa.check()
@@ -1744,7 +1782,7 @@ class App:
             self.key_name(k, ch)
             return
         if self.too_small:
-            if ch in ("q", "Q"):
+            if ch in ("q", "Q") and not self.unsaved():
                 self.done = True
             return
         if self.overlay:
@@ -2116,10 +2154,14 @@ class App:
                     pass
         scr.refresh()
 
+    def unsaved(self):
+        return self.screen == "editor" and self.ed is not None and self.ed.dirty
+
     def draw_small(self, h, w, need_w, need_h):
         self.too_small = True
+        last = ["Mapa sem salvar: aumente", "a tela para salvar"] if self.unsaved() else ["q sai"]
         lines = ["Tela pequena demais", f"atual {w}x{h}", f"mínimo {need_w}x{need_h}",
-                 "Esconda o teclado ou", "diminua a fonte (pinça)", "q sai"]
+                 "Esconda o teclado ou", "diminua a fonte (pinça)"] + last
         for i, line in enumerate(lines):
             put(self.scr, i, 0, line, curses.A_BOLD if i == 0 else 0)
 
@@ -2993,6 +3035,8 @@ class App:
             if had_input or busy or was_busy:
                 self.render()
             was_busy = busy
+        if self._vib_proc is not None and self._vib_proc.poll() is None:
+            self._vib_proc.kill()  # Termux:API travado: não deixa o processo solto depois de sair
 
 
 USAGE = """Tower Defense para o terminal do Termux
@@ -3118,7 +3162,10 @@ def main(argv=None):
     locale.setlocale(locale.LC_ALL, "")
     emoji = False if "--sem-emoji" in args else None
     touch = False if "--sem-toque" in args else None
-    curses.wrapper(lambda scr: App(scr, emoji, touch, start, start_map).run())
+    try:
+        curses.wrapper(lambda scr: App(scr, emoji, touch, start, start_map).run())
+    except KeyboardInterrupt:
+        return 130  # Ctrl+C: sai sem despejar erro na tela
     return 0
 
 

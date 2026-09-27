@@ -273,11 +273,21 @@ def parse_ir_file(text):
     return keys, skipped
 
 
-def encode(signal):
+TOGGLED = {"rc5", "rc5x", "rc6"}  # a TV só aceita o mesmo botão de novo se o bit de alternância mudar
+
+
+def encode(signal, toggle=0):
     if signal["protocol"] == "raw":
         return validate_pattern(signal["frequency"], list(signal["data"]))
-    freq, pattern = ENCODERS[signal["protocol"]](signal["address"], signal["command"])
+    if signal["protocol"] in TOGGLED:
+        freq, pattern = ENCODERS[signal["protocol"]](signal["address"], signal["command"], toggle)
+    else:
+        freq, pattern = ENCODERS[signal["protocol"]](signal["address"], signal["command"])
     return validate_pattern(freq, pattern)
+
+
+def is_imported(name):
+    return os.path.isfile(os.path.join(PROFILES_DIR, name + ".ir"))
 
 
 def load_profiles():
@@ -336,16 +346,22 @@ class Transmitter:
         self.simulate = simulate
         self.cmd = os.environ.get("TV_IR_CMD", "termux-infrared-transmit")
         self.freq_cmd = os.environ.get("TV_IR_FREQ_CMD", "termux-infrared-frequencies")
+        self.timeout = float(os.environ.get("TV_IR_TIMEOUT", "10"))
+        self.stuck = False  # o último envio nem chegou ao Termux:API (ausente ou sem resposta)
 
-    def send(self, freq, pattern, timeout=10):
+    def send(self, freq, pattern, timeout=None):
+        self.stuck = False
         if self.simulate:
             return True, f"simulado, {freq // 1000} kHz"
         try:
             r = subprocess.run([self.cmd, "-f", str(freq), ",".join(map(str, pattern))],
-                               capture_output=True, text=True, timeout=timeout, stdin=subprocess.DEVNULL)
+                               capture_output=True, text=True, timeout=timeout or self.timeout,
+                               stdin=subprocess.DEVNULL)
         except FileNotFoundError:
+            self.stuck = True
             return False, HINT_API
         except subprocess.TimeoutExpired:
+            self.stuck = True
             return False, "Termux:API não respondeu. " + HINT_APP
         out = (r.stdout + r.stderr).strip()
         low = out.lower()
@@ -355,12 +371,12 @@ class Transmitter:
             return False, out or f"falha ao transmitir (código {r.returncode})"
         return True, f"{freq // 1000} kHz"
 
-    def check(self, timeout=10):
+    def check(self, timeout=None):
         """(ok, mensagem, faixas) sobre o emissor IR do aparelho."""
         if self.simulate:
             return True, "modo simulado: nenhum sinal sai do celular", []
         try:
-            r = subprocess.run([self.freq_cmd], capture_output=True, text=True, timeout=timeout,
+            r = subprocess.run([self.freq_cmd], capture_output=True, text=True, timeout=timeout or self.timeout,
                                stdin=subprocess.DEVNULL)
         except FileNotFoundError:
             return False, HINT_API, []
@@ -395,6 +411,17 @@ class Worker:
         while True:
             _, label, freq, pattern = self.jobs.get()
             ok, msg = self.tx.send(freq, pattern)
+            dropped = 0
+            if self.tx.stuck:
+                # cada toque esperaria o mesmo tempo limite: descarta os que se acumularam
+                while True:
+                    try:
+                        self.jobs.get_nowait()
+                        dropped += 1
+                    except queue.Empty:
+                        break
+            if dropped:
+                msg += f" ({dropped} toque{'s' if dropped > 1 else ''} descartado{'s' if dropped > 1 else ''})"
             self.results.put(("sent", ok, label, msg))
 
 
@@ -468,6 +495,8 @@ class App:
         self.flash_key, self.flash_until = None, 0.0
         self.hits = []
         self.choose_index = 0
+        self.choose_top = 0
+        self.toggle = 0
         self.discover_list, self.discover_i = [], 0
         self.done = False
         self._init_curses()
@@ -510,7 +539,8 @@ class App:
         if signal is None:
             self.status, self.status_ok = f"{label}: esta TV não tem esse código", False
             return
-        freq, pattern = encode(signal)
+        self.toggle ^= 1
+        freq, pattern = encode(signal, self.toggle)
         self.worker.jobs.put(("send", label, freq, pattern))
         self.status, self.status_ok = f"enviando {label}...", True
 
@@ -708,12 +738,18 @@ class App:
     def _render_choose(self, h, width):
         safe_addstr(self.scr, 3, 0, "Qual é a marca da sua TV?", curses.A_BOLD)
         names = list(self.profiles)
-        options = [(n, "embutido" if n in BUILTIN else "importado") for n in names]
+        options = [(n, "importado" if is_imported(n) else "embutido") for n in names]
         options.append(("Descobrir automaticamente", "testa cada marca"))
-        for i, (name, note) in enumerate(options):
-            y = 5 + i * 2
-            if y >= h - 3:
-                break
+        room = max(1, (h - 3 - 5) // 2)  # quantas opções cabem; a lista rola com a seleção
+        self.choose_index = min(self.choose_index, len(options) - 1)
+        self.choose_top = min(max(self.choose_top, self.choose_index - room + 1), self.choose_index)
+        self.choose_top = max(0, min(self.choose_top, len(options) - room))
+        if self.choose_top > 0:
+            safe_addstr(self.scr, 4, width - 3, " ▲ ", curses.A_DIM)
+        if self.choose_top + room < len(options):
+            safe_addstr(self.scr, 5 + room * 2 - 1, width - 3, " ▼ ", curses.A_DIM)
+        for i, (name, note) in list(enumerate(options))[self.choose_top:self.choose_top + room]:
+            y = 5 + (i - self.choose_top) * 2
             sel = i == self.choose_index
             attr = (curses.A_REVERSE | curses.A_BOLD) if sel else curses.A_BOLD
             line = f" {name} ".ljust(width - len(note) - 2) + note + " "
@@ -721,7 +757,9 @@ class App:
             if not sel:
                 safe_addstr(self.scr, y, 0, f" {name}", curses.A_BOLD)
             self.hits.append((y, 0, y, width - 1, lambda i=i: self._choose_option(i)))
-        tip_y = 5 + len(options) * 2
+        tip_y = 5 + min(len(options), room) * 2
+        if tip_y + 4 > h - 1:
+            return
         for j, line in enumerate(("Outra marca (Philco, TCL, AOC...)?",
                                   "Baixe o arquivo .ir da sua TV no",
                                   "Flipper-IRDB e rode:",
@@ -839,7 +877,7 @@ def cli(argv):
         current = load_config().get("perfil")
         for pname, keys in profiles.items():
             mark = "*" if pname == current else " "
-            kind = "embutido" if pname in BUILTIN else "importado"
+            kind = "importado" if is_imported(pname) else "embutido"
             print(f"{mark} {pname} ({kind}, {len(keys)} botões)")
         return 0
 
@@ -867,7 +905,11 @@ def cli(argv):
         if key is None:
             print(f"Botão desconhecido: {args[0]}. Veja: tv --ajuda")
             return 2
-        pname = profile or load_config().get("perfil")
+        cfg = load_config()
+        pname = profile or cfg.get("perfil")
+        if profile and profile not in profiles:
+            print(f"TV desconhecida: {profile}. Veja: tv --listar")
+            return 2
         if pname not in profiles:
             print("Nenhuma TV escolhida. Abra 'tv' e escolha a marca, ou use --perfil.")
             return 2
@@ -875,7 +917,15 @@ def cli(argv):
         if signal is None:
             print(f"A TV '{pname}' não tem código para {KEY_LABELS[key]}.")
             return 2
-        ok, msg = tx.send(*encode(signal))
+        toggle = 0
+        if signal["protocol"] in TOGGLED:  # alterna entre execuções: guardado na configuração
+            toggle = cfg.get("rc_toggle", 0) ^ 1
+            cfg["rc_toggle"] = toggle
+            try:
+                save_config(cfg)
+            except OSError:
+                pass
+        ok, msg = tx.send(*encode(signal, toggle))
         print(("✓ " if ok else "✗ ") + f"{KEY_LABELS[key]} ({pname}): {msg}")
         return 0 if ok else 1
 

@@ -1,13 +1,13 @@
-# Relatório de testes — PVN Controle TV 2.0.0
+# Relatório de testes — PVN Controle TV 2.0.2
 
-Data: 2026-09-26 · Python 3.11 · terminal real via `tmux` (44×40, retrato de celular) · Termux:API substituído por um emissor falso em `testes/mock-termux-api/`, que registra exatamente o comando que o Android receberia.
+Data: 2026-09-26, revisado na auditoria de 2026-09-27 (`docs/AUDITORIA-2026-09-27.md` na raiz) · Python 3.11 · terminal real via `tmux` (44×40, retrato de celular) · Termux:API substituído por um emissor falso em `testes/mock-termux-api/`, que registra exatamente o comando que o Android receberia.
 
 ## Resultado
 
 | Bateria | Resultado |
 |---|---|
-| Codificação IR, importação e linha de comando (`test_ir.py`) | 20 / 20 |
-| Tela: toque, teclado, troca de TV, descoberta, erros (`test_tela.sh`) | 27 / 27 |
+| Codificação IR, importação e linha de comando (`test_ir.py`) | 25 / 25 |
+| Tela: toque, teclado, troca de TV, descoberta, erros, lista longa de TVs (`test_tela.sh`) | 30 / 30 |
 | Instalador: Termux com e sem emissor, `curl \| bash`, conflito, remoção (`test_instalador.sh`) | 9 / 9 |
 
 ## O que foi conferido
@@ -19,6 +19,16 @@ Data: 2026-09-26 · Python 3.11 · terminal real via `tmux` (44×40, retrato de 
 **Importação:** um arquivo no formato do Flipper-IRDB com NECext, NEC, raw, um protocolo não suportado (Kaseikyo) e um botão sem equivalente. Os três primeiros entram e os dois últimos são listados como ignorados.
 
 **Erros:** falta do pacote termux-api, app Termux:API que não responde (limite de 10 s), celular sem emissor, botão sem código na TV escolhida e tela pequena.
+
+## Corrigido na auditoria (2.0.2)
+
+- **RC5/RC6 (TVs Philips importadas):** o bit de alternância passou a mudar a cada toque. Antes, um mesmo botão repetido podia ser ignorado pela TV.
+- **Sem o app Termux:API:** os toques acumulados durante a espera de 10 s são descartados. Antes, a tela ficava minutos em "enviando...".
+- **Lista de TVs:** rola quando há muitas importadas.
+- **Rótulo "importado":** fica certo mesmo com nome de marca embutida.
+- **`--perfil` com TV inexistente:** a mensagem ficou clara.
+
+Cada correção tem teste de regressão.
 
 ## Bug encontrado e corrigido durante os testes
 

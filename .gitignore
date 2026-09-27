@@ -3,3 +3,6 @@ __pycache__/
 
 # pacotes gerados pelo empacotar.sh
 dist/
+
+# imagens do testes/captura.sh (padrão: ./capturas)
+/capturas/
