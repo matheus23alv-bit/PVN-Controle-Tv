@@ -3,7 +3,7 @@
 #
 #   bash empacotar.sh [pasta-destino] [commit] [tudo|td]
 #
-# tudo (padrão): o repositório daquele commit (sem .git), com os dois projetos
+# tudo (padrão): o repositório daquele commit (sem .git), com os projetos
 #   (source, legados, testes, docs) e o setup-teste.sh.
 # td: só a pasta tower-defense/ inteira e o setup-teste.sh, que então instala
 #   só o jogo.
@@ -22,6 +22,7 @@ esac
 git rev-parse --verify --quiet "$REF^{commit}" >/dev/null || { echo "commit desconhecido: $REF" >&2; exit 1; }
 TV="$(git show "$REF:controle-tv/source/VERSION" | tr -d '[:space:]')"
 TD="$(git show "$REF:tower-defense/source/VERSION" | tr -d '[:space:]')"
+TK="$( (git show "$REF:teclado-termux/source/VERSION" 2>/dev/null || true) | tr -d '[:space:]')"  # desde a 1.0.0
 SHA="$(git rev-parse --short "$REF")"
 DATE="$(git log -1 --format=%cd --date=format:%Y%m%d "$REF")"
 if [ "$QUAL" = td ]; then NAME="PVN-pack-${DATE}-td-${TD}-${SHA}"; else NAME="PVN-pack-${DATE}-controle-${TV}-td-${TD}-${SHA}"; fi
@@ -38,6 +39,7 @@ git archive --format=tar "$REF" ${PATHS[@]+"${PATHS[@]}"} | tar -x -C "$WORK"
   echo "data:     $(git log -1 --format=%cd --date=iso "$REF")"
   [ "$QUAL" = td ] || echo "controle: $TV"
   echo "jogo:     $TD"
+  if [ "$QUAL" = tudo ] && [ -n "$TK" ]; then echo "teclado:  $TK"; fi
   echo
   echo "Instalar no Termux (a partir desta pasta):  bash setup-teste.sh"
   echo

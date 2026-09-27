@@ -27,17 +27,18 @@ extra-keys = [ \
 use-black-ui = true
 EOF
 cp "$WORK/tx/.termux/termux.properties" "$WORK/original"
-termux tx "$INST" --teclas >/dev/null 2>&1
+out="$(termux tx "$INST" --teclas 2>&1)"
 P="$WORK/tx/.termux/termux.properties"
 check "Comando criado em \$PREFIX/bin" '[ -x "$WORK/tx-prefix/bin/td" ]'
-check "Barra antiga removida por inteiro" '! grep -q "HOME" "$P" && ! grep -q "TAB" "$P"'
-check "Outras opcoes preservadas" 'grep -q "use-black-ui = true" "$P" && grep -q "# minha config" "$P"'
-check "Barra do jogo gravada" 'grep -q "KEYBOARD" "$P"'
-termux tx "$INST" --teclas >/dev/null 2>&1
-check "Reinstalar nao duplica a barra" '[ "$(grep -c "^extra-keys" "$P")" = 1 ]'
-check "Backup e o arquivo original" 'cmp -s "$WORK/original" "$WORK/tx/.termux/termux.properties.antes-do-td"'
+check "A barra da pessoa fica intacta: a do jogo e do comando teclas" 'cmp -s "$WORK/original" "$P"'
+check "Nada muda no termux.properties, entao nao ha backup" '[ ! -e "$WORK/tx/.termux/termux.properties.antes-do-td" ]'
+check "--teclas avisa que a barra nao e mais fixada" 'grep -q "para fixar: teclas jogo" <<<"$out"'
+check "Sem o teclas, orienta a instalar o Teclado Termux" 'grep -q "instale o Teclado Termux" <<<"$out"'
+printf '#!/bin/sh\n' > "$WORK/tx-prefix/bin/teclas"; chmod +x "$WORK/tx-prefix/bin/teclas"
+out="$(PATH="$WORK/tx-prefix/bin:$PATH" termux tx "$INST" 2>&1)"
+check "Com o teclas, explica que a barra entra ao abrir o td" 'grep -q "entra ao abrir o td e sai ao fechar" <<<"$out"'
 termux tx "$WORK/tx/.local/share/tower-defense/instalar.sh" --remover >/dev/null 2>&1
-check "Remover restaura o arquivo byte a byte" 'cmp -s "$WORK/original" "$P"'
+check "Remover deixa o arquivo como estava" 'cmp -s "$WORK/original" "$P"'
 check "Remover apaga comandos e arquivos" '[ ! -e "$WORK/tx-prefix/bin/td" ] && [ ! -e "$WORK/tx/.local/share/tower-defense" ]'
 
 echo "== Termux: tela cheia e fonte"
@@ -68,9 +69,9 @@ PORT=18090
 (cd "$SRC" && exec python3 -m http.server "$PORT" >/dev/null 2>&1) & SRV=$!
 sleep 1
 mkdir -p "$WORK/cu" "$WORK/cu-prefix/bin"
-out="$(cat "$INST" | HOME="$WORK/cu" TERMUX_VERSION=0.118 PREFIX="$WORK/cu-prefix" TD_REPO_RAW="http://localhost:$PORT" bash -s -- --teclas 2>&1)"
+out="$(cat "$INST" | HOME="$WORK/cu" TERMUX_VERSION=0.118 PREFIX="$WORK/cu-prefix" TD_REPO_RAW="http://localhost:$PORT" bash -s -- --tela-cheia 2>&1)"
 check "Baixa os arquivos pela rede" 'grep -q "baixado do GitHub" <<<"$out" && [ -f "$WORK/cu/.local/share/tower-defense/td.py" ]'
-check "Script completo apesar de vir pela entrada padrao" 'grep -q "instalado" <<<"$out"'
+check "Script completo apesar de vir pela entrada padrao" 'grep -q "instalado" <<<"$out" && grep -q "^fullscreen = true" "$WORK/cu/.termux/termux.properties"'
 out="$(cat "$INST" | HOME="$WORK/cu" TERMUX_VERSION=0.118 PREFIX="$WORK/cu-prefix" TD_REPO_RAW="http://localhost:$PORT" bash -s -- --sem-teclas --fonte 2>&1)"
 check "Pelo curl, a fonte e baixada so quando pedida" 'cmp -s "$SRC/fontes/DejaVuSansMono.ttf" "$WORK/cu/.termux/font.ttf" && [ -e "$WORK/cu/.termux/.td-sem-fonte-original" ]'
 check "Sem fonte propria antes, nao promete backup" 'grep -q "antes era a fonte padrão" <<<"$out" && ! grep -q "a sua ficou" <<<"$out"'

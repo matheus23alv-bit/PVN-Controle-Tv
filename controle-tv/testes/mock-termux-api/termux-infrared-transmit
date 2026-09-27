@@ -1,5 +1,7 @@
 #!/usr/bin/env sh
 # Emissor falso para testes: registra o comando que o Termux:API receberia.
 # TV_MOCK_TRAVAR=1 imita o app Termux:API ausente (o comando fica sem resposta).
+# TV_MOCK_ATRASO=0.3 imita o tempo que o Termux:API leva para transmitir.
 [ -n "${TV_MOCK_TRAVAR:-}" ] && exec sleep 30
+[ -n "${TV_MOCK_ATRASO:-}" ] && sleep "$TV_MOCK_ATRASO"
 echo "$*" >> "${TV_MOCK_LOG:-/dev/null}"

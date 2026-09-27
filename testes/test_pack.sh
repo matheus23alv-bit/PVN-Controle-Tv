@@ -4,7 +4,7 @@
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MOCK="$ROOT/controle-tv/testes/mock-termux-api"
-W="$(mktemp -d)"; trap 'rm -rf "$W"' EXIT
+W="$(mktemp -d)"; trap 'tmux kill-session -t pk 2>/dev/null; rm -rf "$W"' EXIT
 pass=0; fail=0
 check() { if eval "$2"; then echo "PASS  $1"; pass=$((pass+1)); else echo "FAIL  $1"; fail=$((fail+1)); fi; }
 
@@ -40,9 +40,36 @@ out="$(run a bash "$ROOT/instalar-pack.sh")"; code=$?
 check "Escolhe o pack mais recente, mesmo com nome (1)" 'grep -q "(1).zip" <<<"$out"'
 check "Confere o SHA-256 de todos os arquivos" 'grep -q "arquivos conferem com o SHA-256" <<<"$out"'
 check "Instala a partir de ~/pvn-pack, sem baixar do GitHub" 'grep -q "usando os arquivos desta pasta (~/pvn-pack)" <<<"$out"'
-check "Controle e jogo instalados, emissor detectado" '[ $code -eq 0 ] && grep -q "controle .* instalado: comando tv" <<<"$out" && grep -q "jogo .* instalado: comando td" <<<"$out" && grep -q "emissor IR pronto" <<<"$out"'
-check "Pack completo: 4 passos e os dois roteiros" 'grep -q "SETUP DE TESTE COMPLETO" <<<"$out" && grep -q "4/4  Conferência" <<<"$out" && grep -q "controle-tv/docs/ROADMAP.md" <<<"$out" && grep -q "tower-defense/docs/ROADMAP.md" <<<"$out"'
+check "Teclado, controle e jogo instalados, emissor detectado" '[ $code -eq 0 ] && grep -q "teclado .* instalado: comando teclas" <<<"$out" && grep -q "controle .* instalado: comando tv" <<<"$out" && grep -q "jogo .* instalado: comando td" <<<"$out" && grep -q "emissor IR pronto" <<<"$out"'
+check "Pack completo: 5 passos e os três roteiros" 'grep -q "SETUP DE TESTE COMPLETO" <<<"$out" && grep -q "5/5  Conferência" <<<"$out" && grep -q "controle-tv/docs/ROADMAP.md" <<<"$out" && grep -q "tower-defense/docs/ROADMAP.md" <<<"$out" && grep -q "teclado-termux/docs/ROADMAP.md" <<<"$out"'
+check "Teclado instalado antes: o jogo sabe que a barra dele é automática" 'grep -q "entra ao abrir o td e sai ao fechar" <<<"$out"'
+check "Manifesto e instalador mostram a versão do teclado" 'grep -q "✔ teclado $(cat "$ROOT/teclado-termux/source/VERSION")" <<<"$out"'
 check "Comando tv funciona depois" 'run a tv --perfil LG ligar | grep -q "✓ Ligar/desligar (LG)"'
+
+echo "== Os três juntos: a barra troca sozinha ao abrir o td e o tv"
+PROPS="$W/a/.termux/termux.properties"
+bar() { sed -n 's/^# teclas: //p' "$PROPS" 2>/dev/null; }
+app() {  # app <comando>: abre no tmux como no Termux desse aparelho
+  tmux kill-session -t pk 2>/dev/null
+  tmux new-session -d -s pk -x 46 -y 50 "HOME='$W/a' TERMUX_VERSION=0.118 PREFIX='$W/a/prefix' TV_MOCK_LOG='$W/a/ir.log' PATH='$W/a/prefix/bin:$MOCK:$PATH' TERM=xterm-256color $1"
+  sleep 2.5
+}
+run a teclas melhorado >/dev/null
+check "teclas melhorado grava a barra do dia a dia" '[ "$(bar)" = melhorado ]'
+app td
+check "Abrir o td põe a barra do jogo" '[ "$(bar)" = jogo ]'
+tmux send-keys -t pk q; sleep 2.5
+check "Fechar o td devolve o padrão melhorado" '[ "$(bar)" = melhorado ]'
+run a tv --perfil LG vol- >/dev/null; VOLDN="$(tail -1 "$W/a/ir.log")"; : > "$W/a/ir.log"
+app "tv --perfil LG"
+check "Abrir o tv põe a barra da TV" '[ "$(bar)" = tv ]'
+tmux send-keys -t pk NPage; sleep 1
+check "VOL- da barra da TV transmite pelo emissor" '[ "$(tail -1 "$W/a/ir.log")" = "$VOLDN" ]'
+tmux send-keys -t pk q; sleep 2.5
+check "Fechar o tv devolve o padrão melhorado" '[ "$(bar)" = melhorado ]'
+tmux kill-session -t pk 2>/dev/null
+run a teclas original >/dev/null
+check "teclas original: sem barra própria antes, volta ao padrão do Termux" '[ -z "$(bar)" ] && ! grep -q "^extra-keys" "$PROPS" 2>/dev/null'
 out="$(run a bash "$ROOT/instalar-pack.sh")"; code=$?
 check "Reinstalar substitui o pack anterior" '[ $code -eq 0 ] && [ -f "$W/a/pvn-pack/PACK-INFO.txt" ] && [ ! -e "$W/a/pvn-pack.novo" ]'
 
@@ -92,7 +119,7 @@ check "Pack desconhecido é recusado" '! bash "$ROOT/empacotar.sh" "$W/dist-x" H
 phone g; cp "$TDZIP" "$W/g/sdcard/Download/"
 out="$(run g bash "$ROOT/instalar-pack.sh")"; code=$?
 check "Instala só o jogo, conferindo o SHA-256" '[ $code -eq 0 ] && grep -q "SETUP DO TOWER DEFENSE" <<<"$out" && grep -q "arquivos conferem" <<<"$out" && grep -q "jogo .* instalado: comando td" <<<"$out"'
-check "Não instala nem cita o controle" '[ ! -e "$W/g/.local/bin/tv" ] && ! grep -qE "Controle TV|comando tv|emissor|controle-tv|📺" <<<"$out"'
+check "Não instala nem cita o controle nem o teclado" '[ ! -e "$W/g/prefix/bin/tv" ] && [ ! -e "$W/g/prefix/bin/teclas" ] && ! grep -qE "Controle TV|comando tv|emissor|controle-tv|📺|⌨ Teclado" <<<"$out"'
 check "3 passos e o roteiro só do jogo" 'grep -q "━━ 1/3  Preparação" <<<"$out" && grep -q "━━ 2/3  Tower Defense" <<<"$out" && grep -q "━━ 3/3  Conferência" <<<"$out" && grep -q "Roteiro completo:" <<<"$out" && grep -q "tower-defense/docs/ROADMAP.md" <<<"$out"'
 check "Comando td funciona depois" '[ "$(run g td --versao)" = "$(cat "$ROOT/tower-defense/source/VERSION")" ]'
 

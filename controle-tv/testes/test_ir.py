@@ -48,7 +48,9 @@ PUBLISHED = {
            "ch_up": 0x20DF00FF, "ch_down": 0x20DF807F, "input": 0x20DFD02F, "ok": 0x20DF22DD,
            "up": 0x20DF02FD, "down": 0x20DF827D, "left": 0x20DFE01F, "right": 0x20DF609F,
            "back": 0x20DF14EB, "exit": 0x20DFDA25, "menu": 0x20DFC23D, "home": 0x20DF3EC1,
-           "info": 0x20DF55AA, "d1": 0x20DF8877, "d5": 0x20DFA857, "d0": 0x20DF08F7},
+           "info": 0x20DF55AA, "d1": 0x20DF8877, "d2": 0x20DF48B7, "d3": 0x20DFC837, "d4": 0x20DF28D7,
+           "d5": 0x20DFA857, "d6": 0x20DF6897, "d7": 0x20DFE817, "d8": 0x20DF18E7, "d9": 0x20DF9867,
+           "d0": 0x20DF08F7},
     "Samsung": {"power": 0xE0E040BF, "vol_up": 0xE0E0E01F, "vol_down": 0xE0E0D02F, "mute": 0xE0E0F00F,
                 "ch_up": 0xE0E048B7, "ch_down": 0xE0E008F7, "input": 0xE0E0807F, "menu": 0xE0E058A7,
                 "up": 0xE0E006F9, "down": 0xE0E08679, "left": 0xE0E0A659, "right": 0xE0E046B9,
@@ -67,6 +69,11 @@ class TestCodigosPublicados(unittest.TestCase):
                 freq, pattern = tv.encode(tv.BUILTIN[brand][key])
                 self.assertEqual(freq, 38000)
                 self.assertEqual(pulse_distance_hex(pattern), expected, f"{brand} {key}")
+
+    def test_lg_todos_os_27_botoes_conferidos(self):
+        self.assertEqual(set(tv.BUILTIN["LG"]), set(PUBLISHED["LG"]))
+        self.assertEqual(len(PUBLISHED["LG"]), 27)
+        self.assertEqual(set(tv.BUILTIN["LG"]), set(tv.KEY_LABELS), "a LG tem todos os botões da tela")
 
     def test_sony_bate_com_os_codigos_publicados(self):
         for key, expected in PUBLISHED["Sony"].items():
@@ -349,6 +356,75 @@ class TestAuditoria(unittest.TestCase):
         r = w.results.get(timeout=3)
         self.assertIn("2 toques descartados", r[3])
         self.assertTrue(w.jobs.empty())
+
+
+class Lento:
+    """Emissor que leva 0,2 s por sinal, como o Termux:API."""
+    stuck = False
+
+    def __init__(self):
+        self.sent = []
+
+    def send(self, freq, pattern):
+        import time
+        time.sleep(0.2)
+        self.sent.append(pattern[0])
+        return True, "38 kHz"
+
+
+class TestSegurarVolume(unittest.TestCase):
+    def wait_idle(self, w, keys):
+        import time
+        for _ in range(100):
+            if not any(w.queued(k) for k in keys):
+                return
+            time.sleep(0.05)
+
+    def test_pgup_e_pgdn_sao_o_volume(self):
+        self.assertEqual(tv.KEYMAP[tv.curses.KEY_PPAGE], "vol_up")
+        self.assertEqual(tv.KEYMAP[tv.curses.KEY_NPAGE], "vol_down")
+
+    def test_tecla_segurada_manda_um_sinal_por_vez_e_para_ao_soltar(self):
+        import time
+        tx = Lento()
+        w = tv.Worker(tx)
+        accepted = int(w.submit("vol_up", "Volume +", 38000, [1]))
+        for i in range(1, 12):  # o Termux repete a cada ~0,08 s enquanto o dedo está na tecla
+            time.sleep(0.08)
+            accepted += w.submit("vol_up", "Volume +", 38000, [i + 1], held=True)
+        self.wait_idle(w, ["vol_up"])
+        self.assertEqual(len(tx.sent), accepted)
+        self.assertGreaterEqual(len(tx.sent), 3, "segurando ~0,9 s, o volume sobe algumas vezes")
+        self.assertLessEqual(len(tx.sent), 6, "mas não acumula um envio por repetição (12)")
+        before = len(tx.sent)
+        time.sleep(0.5)
+        self.assertEqual(len(tx.sent), before, "ao soltar, nada fica na fila")
+
+    def test_toques_separados_saem_todos(self):
+        import time
+        tx = Lento()
+        w = tv.Worker(tx)
+        for i in range(4):
+            self.assertTrue(w.submit("vol_up", "Volume +", 38000, [i + 1]))
+            time.sleep(0.25)
+        self.wait_idle(w, ["vol_up"])
+        self.assertEqual(len(tx.sent), 4)
+
+    def test_digitos_nunca_sao_descartados(self):
+        tx = Lento()
+        w = tv.Worker(tx)
+        for i in range(5):  # canal 11111 digitado rápido
+            self.assertTrue(w.submit("d1", "Dígito 1", 38000, [i + 1], held=True))
+        self.wait_idle(w, ["d1"])
+        self.assertEqual(tx.sent, [1, 2, 3, 4, 5])
+
+    def test_fila_limitada_mesmo_sem_segurar(self):
+        tx = Lento()
+        w = tv.Worker(tx)
+        results = [w.submit("vol_down", "Volume -", 38000, [i + 1]) for i in range(6)]
+        self.assertEqual(results.count(True), tv.MAX_QUEUED)
+        self.wait_idle(w, ["vol_down"])
+        self.assertEqual(len(tx.sent), tv.MAX_QUEUED)
 
 
 if __name__ == "__main__":

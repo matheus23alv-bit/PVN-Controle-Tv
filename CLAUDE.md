@@ -14,9 +14,10 @@ Leia `CHECKPOINT.md` (estado atual, mapa do código, decisões tomadas, pendênc
 
 ## Direção dos projetos
 
-- Os dois projetos rodam **no terminal do Termux**, não no navegador.
+- Os três projetos rodam **no terminal do Termux**, não no navegador.
 - `controle-tv`: controle remoto real pelo **emissor infravermelho do próprio celular** (Termux:API, `termux-infrared-transmit`). O simulador web é legado.
 - `tower-defense`: jogo independente e leve, visual com emojis em casas de 2 colunas; setup, menu e tutorial ficam dentro do terminal. O usuário tem outro projeto TD, complexo, separado deste.
+- `teclado-termux`: comando `teclas`, que troca a barra de teclas extras do Termux (padrão melhorado, jogo, TV, padrão do Termux e a barra de antes da pessoa). O `tv` e o `td` chamam `teclas --entrar <perfil>` e `teclas --sair`, só se o comando existir: os projetos continuam independentes.
 
 ## Estrutura
 
@@ -30,7 +31,8 @@ Leia `CHECKPOINT.md` (estado atual, mapa do código, decisões tomadas, pendênc
 ```bash
 cd controle-tv && python3 -m unittest testes/test_ir.py && bash testes/test_tela.sh && bash testes/test_instalador.sh
 cd tower-defense && python3 -m unittest testes/test_logica.py && bash testes/test_terminal.sh && bash testes/test_instalador.sh
-bash testes/test_pack.sh   # na raiz: empacotar.sh, instalar-pack.sh e setup-teste.sh
+cd teclado-termux && python3 -m unittest testes/test_teclas.py && bash testes/test_tela.sh && bash testes/test_instalador.sh
+bash testes/test_pack.sh   # na raiz: empacotar.sh, instalar-pack.sh, setup-teste.sh e os três juntos
 ```
 
 Os testes de tela precisam de `tmux`. O controle é testado com o Termux:API falso de `controle-tv/testes/mock-termux-api/`.

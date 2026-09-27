@@ -2,24 +2,6 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versionamento semântico.
 
-## [2.1.0] — 2026-09-27
-
-TV LG conferida por inteiro, volume que repete ao segurar e barra de teclas da TV no Termux. A 2.0.2 está em `legados/v2.0.2/`.
-
-### Adicionado
-- **Barra de teclas da TV:** com o Teclado Termux instalado (comando `teclas`), o `tv` põe a barra da TV ao abrir e devolve a anterior ao fechar. A barra tem LIGAR, MUDO, FONTE, VOL±, CH±, VOLTAR, INÍCIO, MENU, INFO, setas, OK e SAIR. O `tv <botão>` da linha de comando não troca a barra.
-- **PgUp e PgDn são VOL+ e VOL−.** Na barra da TV, segurar VOL repete o volume, porque o Termux repete essas teclas sozinho.
-
-### Mudado
-- **Tecla segurada sem fila acumulada.** Uma repetição só entra depois que o sinal anterior saiu. O volume sobe enquanto você segura e para quando você solta, mesmo com o Termux:API levando ~0,3 s por sinal.
-- **Limite de 3 na fila por tecla repetível.** Vale para volume, canal e setas. Dígitos nunca são descartados, então "11" continua sendo o canal 11.
-- **Bit de alternância (RC5/RC6):** muda a cada sinal enviado, e não nas repetições descartadas.
-
-### Testes
-- **Códigos da LG:** os 27 botões conferidos com os códigos publicados (antes, 20).
-- **Unidade:** 6 testes novos (31 no total), com volume segurado, toques separados, dígitos repetidos e limite da fila.
-- **Tela:** 9 testes novos (39 no total), com PgUp/PgDn na LG, VOL segurado, toques separados, canal 11 e troca da barra ao abrir e fechar.
-
 ## [2.0.2] — 2026-09-27
 
 Correções da auditoria de 2026-09-27.

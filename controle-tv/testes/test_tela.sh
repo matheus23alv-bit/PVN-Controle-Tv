@@ -102,5 +102,36 @@ check "Descer mostra as TVs que estavam fora da tela" 'screen | grep -q "TV extr
 key Enter
 check "Escolhe a TV que estava fora da tela" 'line 1 | grep -q "TV: TV extra 8"'
 
+echo "== Barra da TV do teclas: VOL+ e VOL- pelo PGUP e PGDN"
+mkdir -p "$WORK/fake"
+printf '#!/bin/sh\necho "$*" >> "%s/teclas.log"\n' "$WORK" > "$WORK/fake/teclas"; chmod +x "$WORK/fake/teclas"
+HOME="$WORK/home" TV_MOCK_LOG="$WORK/ref.log" PATH="$MOCK:$PATH" python3 "$SRC/tv.py" --perfil LG vol+ >/dev/null
+HOME="$WORK/home" TV_MOCK_LOG="$WORK/ref.log" PATH="$MOCK:$PATH" python3 "$SRC/tv.py" --perfil LG vol- >/dev/null
+VOLUP="$(sed -n 1p "$WORK/ref.log")"; VOLDN="$(sed -n 2p "$WORK/ref.log")"
+volups() { grep -c -x -F -e "$VOLUP" "$LOG"; }
+: > "$LOG"
+PATHX="$WORK/fake:$MOCK:$PATH" start 44 40 "TV_MOCK_ATRASO=0.3" "--perfil LG"
+sleep .5
+check "Ao abrir, pede a barra da TV ao teclas" 'grep -q -x -e "--entrar tv" "$WORK/teclas.log"'
+key PPage; sleep .4
+check "PGUP envia o VOL+ da LG" '[ "$(sent)" = "$VOLUP" ] && last | grep -q "✓ Volume + enviado"'
+key NPage; sleep .4
+check "PGDN envia o VOL- da LG" '[ "$(sent)" = "$VOLDN" ]'
+: > "$LOG"
+tmux send-keys -t tvt PPage PPage PPage PPage PPage PPage PPage PPage PPage PPage PPage PPage; sleep 2
+check "Segurar VOL+ não enfileira: sai um sinal por vez" '[ "$(volups)" -ge 1 ] && [ "$(volups)" -le 2 ]'
+n0="$(volups)"; sleep 1
+check "Ao soltar, o volume para na hora" '[ "$(volups)" -eq "$n0" ]'
+: > "$LOG"
+for i in 1 2 3; do key PPage; done; sleep .5
+check "Toques separados saem todos" '[ "$(volups)" -eq 3 ]'
+: > "$LOG"
+tmux send-keys -t tvt 1 1; sleep 1.5
+check "Dígito repetido rápido (canal 11) sai duas vezes" '[ "$(wc -l < "$LOG")" -eq 2 ]'
+key q; sleep .6
+check "Ao sair, devolve a barra anterior" 'tail -1 "$WORK/teclas.log" | grep -q -x -e "--sair"'
+HOME="$WORK/home" TV_MOCK_LOG="$WORK/ref.log" PATH="$WORK/fake:$MOCK:$PATH" python3 "$SRC/tv.py" --perfil LG mudo >/dev/null
+check "tv <botão> na linha de comando não troca a barra" '[ "$(wc -l < "$WORK/teclas.log")" -eq 2 ]'
+
 echo; echo "$pass aprovados, $fail falhas"
 [ "$fail" -eq 0 ]
