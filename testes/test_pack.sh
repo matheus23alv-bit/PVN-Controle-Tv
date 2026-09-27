@@ -41,6 +41,7 @@ check "Escolhe o pack mais recente, mesmo com nome (1)" 'grep -q "(1).zip" <<<"$
 check "Confere o SHA-256 de todos os arquivos" 'grep -q "arquivos conferem com o SHA-256" <<<"$out"'
 check "Instala a partir de ~/pvn-pack, sem baixar do GitHub" 'grep -q "usando os arquivos desta pasta (~/pvn-pack)" <<<"$out"'
 check "Controle e jogo instalados, emissor detectado" '[ $code -eq 0 ] && grep -q "controle .* instalado: comando tv" <<<"$out" && grep -q "jogo .* instalado: comando td" <<<"$out" && grep -q "emissor IR pronto" <<<"$out"'
+check "Pack completo: 4 passos e os dois roteiros" 'grep -q "SETUP DE TESTE COMPLETO" <<<"$out" && grep -q "4/4  Conferência" <<<"$out" && grep -q "controle-tv/docs/ROADMAP.md" <<<"$out" && grep -q "tower-defense/docs/ROADMAP.md" <<<"$out"'
 check "Comando tv funciona depois" 'run a tv --perfil LG ligar | grep -q "✓ Ligar/desligar (LG)"'
 out="$(run a bash "$ROOT/instalar-pack.sh")"; code=$?
 check "Reinstalar substitui o pack anterior" '[ $code -eq 0 ] && [ -f "$W/a/pvn-pack/PACK-INFO.txt" ] && [ ! -e "$W/a/pvn-pack.novo" ]'
@@ -80,6 +81,20 @@ echo "== Pelo curl | bash"
 phone f; cp "$ZIP" "$W/f/sdcard/Download/"
 out="$(cat "$ROOT/instalar-pack.sh" | run f bash)"; code=$?
 check "Funciona recebido pela entrada padrão" '[ $code -eq 0 ] && grep -q "instalado: comando td" <<<"$out"'
+
+echo "== Pack só do Tower Defense"
+TDZIP="$(bash "$ROOT/empacotar.sh" "$W/dist-td" HEAD td)"
+check "Nome traz só a versão do jogo" '[[ "$(basename "$TDZIP")" =~ ^PVN-pack-[0-9]{8}-td-[0-9.]+-[0-9a-f]{7}\.zip$ ]]'
+check "Zip só com tower-defense/, o setup e o manifesto" '! unzip -Z1 "$TDZIP" | grep -v "/$" | grep -qvE "^[^/]+/(tower-defense/.+|setup-teste\.sh|PACK-INFO\.txt)$"'
+check "Jogo inteiro: source, testes, docs e legados" '[ "$(unzip -Z1 "$TDZIP" | grep -oE "/tower-defense/(source|testes|docs|legados)/" | sort -u | wc -l)" -eq 4 ]'
+check "Manifesto com a versão do jogo e sem a do controle" 'i="$(unzip -p "$TDZIP" "*/PACK-INFO.txt")"; grep -q "só o Tower Defense" <<<"$i" && grep -q "^jogo: *$(cat "$ROOT/tower-defense/source/VERSION")$" <<<"$i" && ! grep -q "^controle:" <<<"$i"'
+check "Pack desconhecido é recusado" '! bash "$ROOT/empacotar.sh" "$W/dist-x" HEAD xyz 2>/dev/null && [ ! -e "$W/dist-x" ]'
+phone g; cp "$TDZIP" "$W/g/sdcard/Download/"
+out="$(run g bash "$ROOT/instalar-pack.sh")"; code=$?
+check "Instala só o jogo, conferindo o SHA-256" '[ $code -eq 0 ] && grep -q "SETUP DO TOWER DEFENSE" <<<"$out" && grep -q "arquivos conferem" <<<"$out" && grep -q "jogo .* instalado: comando td" <<<"$out"'
+check "Não instala nem cita o controle" '[ ! -e "$W/g/.local/bin/tv" ] && ! grep -qE "Controle TV|comando tv|emissor|controle-tv|📺" <<<"$out"'
+check "3 passos e o roteiro só do jogo" 'grep -q "━━ 1/3  Preparação" <<<"$out" && grep -q "━━ 2/3  Tower Defense" <<<"$out" && grep -q "━━ 3/3  Conferência" <<<"$out" && grep -q "Roteiro completo:" <<<"$out" && grep -q "tower-defense/docs/ROADMAP.md" <<<"$out"'
+check "Comando td funciona depois" '[ "$(run g td --versao)" = "$(cat "$ROOT/tower-defense/source/VERSION")" ]'
 
 echo; echo "$pass aprovados, $fail falhas"
 [ "$fail" -eq 0 ]

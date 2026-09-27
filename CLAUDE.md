@@ -2,13 +2,14 @@
 
 ## Início de sessão
 
-Leia `CHECKPOINT.md` (estado atual, mapa do código, decisões tomadas, pendências e próximos passos) antes de mexer no projeto. Ao fechar um ciclo grande, atualize o checkpoint.
+Leia `CHECKPOINT.md` (estado atual, mapa do código, decisões tomadas, pendências e próximos passos) antes de mexer no projeto. Em sessão só do Tower Defense, leia `tower-defense/docs/CHECKPOINT.md`. Ao fechar um ciclo grande, atualize o checkpoint.
 
 ## Entrega (obrigatório em toda entrega ao usuário)
 
 1. **Merge** da atualização no branch principal do repositório (`claude/tv-remote-control-app-lu248i`, o default) por PR, depois de rodar os testes abaixo.
 2. **Pack zip** gerado do commit já mesclado e enviado ao usuário como arquivo, junto com o `instalar-pack.sh` (ele instala a partir do zip na pasta Download do celular):
    `git fetch origin && bash empacotar.sh <pasta> origin/claude/tv-remote-control-app-lu248i`
+   Em sessão só do Tower Defense, acrescente `td` no fim: o pack leva só o jogo e instala só ele.
 3. Na resposta: o que mudou, resultado dos testes, o comando de instalação e o que o usuário precisa testar.
 
 ## Direção dos projetos

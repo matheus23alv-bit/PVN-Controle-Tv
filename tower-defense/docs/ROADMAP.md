@@ -1,12 +1,12 @@
 # Tower Defense — roteiro de teste e próximos passos
 
-## Roteiro de teste no seu celular (3.1.0)
+## Roteiro de teste no seu celular (3.1.2)
 
 Faça na ordem, com o celular em pé, e anote o que aparecer diferente do esperado.
 
 | # | Faça | Esperado |
 |---|---|---|
-| 1 | Instale pelo pack (`bash ~/storage/downloads/instalar-pack.sh`) e responda `s` a tela cheia e fonte | O Termux recarrega sem as barras do Android e com a fonte nova |
+| 1 | Instale pelo pack (`bash ~/storage/downloads/instalar-pack.sh`; o pack só do jogo serve) e responda `s` a tela cheia e fonte | O Termux recarrega sem as barras do Android e com a fonte nova |
 | 2 | `td` → Opções → Ajustar tela | Tamanho da tela, escala e régua: cada emoji entre duas barras, ★ e barras sem vãos |
 | 3 | Jogue uma partida e chame 3 ondas | Faixa "ONDA N", flechas e balas voando, explosão laranja, raio magenta do Mago |
 | 4 | Olhe os monstros atingidos | Piscam em branco; números de dano vermelhos (cinza na Tartaruga); 💥 e 💨 na morte, "+ouro" subindo |

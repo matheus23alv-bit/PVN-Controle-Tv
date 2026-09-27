@@ -4,6 +4,8 @@
 
 Este arquivo existe para continuar o projeto em outra sessão sem perder contexto. Ele entra na Main pelo PR da auditoria (#8). O hash exato do commit está no `MARCADOR-DE-CONTINUIDADE.txt` do pack de continuidade, ou no resultado de `git log -1 --format=%H -- CHECKPOINT.md`.
 
+Para continuar só o jogo, use `tower-defense/docs/CHECKPOINT.md` (marcador `TD-CHECKPOINT-2026-09-27`).
+
 ## 1. Estado atual
 
 | Item | Valor |
@@ -11,10 +13,10 @@ Este arquivo existe para continuar o projeto em outra sessão sem perder context
 | Repositório | `matheus23alv-bit/PVN-Controle-Tv` |
 | Branch principal (a "Main" do usuário) | `claude/tv-remote-control-app-lu248i`, que é o branch padrão |
 | Branch de trabalho das sessões | `claude/tower-defense-termux-yjzaeb`, recriado a partir da Main depois de cada merge |
-| Histórico de merges | PR #1 a #7 e #8 (esta auditoria) |
+| Histórico de merges | PR #1 a #7, #8 (esta auditoria) e #9 (pack e checkpoint só do Tower Defense) |
 | Controle TV | 2.0.2: controle IR real pelo emissor do celular, no terminal |
 | Tower Defense | 3.1.2: jogo de terminal em tela cheia retrato, com editor de mapas |
-| Testes | controle 25/30/9 · jogo 75/95/29 · pack 18 |
+| Testes | controle 25/30/9 · jogo 75/95/29 · pack 28 |
 
 ## 2. Os dois projetos
 
@@ -38,8 +40,8 @@ Este arquivo existe para continuar o projeto em outra sessão sem perder context
 - **Configuração:** `~/.config/td-termux/` (`config.json` e `mapas/*.mapa`). Instala em `~/.local/share/tower-defense`, com o comando `td`.
 
 **Raiz:**
-- `setup-teste.sh`: instala os dois projetos.
-- `empacotar.sh`: gera o pack zip com o `PACK-INFO.txt` e o SHA-256 de cada arquivo.
+- `setup-teste.sh`: instala os dois projetos, ou só o que vier no pack.
+- `empacotar.sh`: gera o pack zip com o `PACK-INFO.txt` e o SHA-256 de cada arquivo. Com `td` no fim, o pack leva só o jogo.
 - `instalar-pack.sh`: instala do zip na pasta Download do celular.
 - `testes/test_pack.sh`: testa essas três ferramentas.
 - `testes/captura.sh` e `testes/term2png.py`: capturam a tela do tmux em PNG para revisão visual.
@@ -73,7 +75,7 @@ Resumo do `CLAUDE.md`, que é carregado automaticamente em toda sessão.
 - **Entrega:**
   1. testes;
   2. PR para a Main e merge;
-  3. pack zip gerado do commit mesclado: `git fetch origin && bash empacotar.sh <pasta> origin/claude/tv-remote-control-app-lu248i`;
+  3. pack zip gerado do commit mesclado: `git fetch origin && bash empacotar.sh <pasta> origin/claude/tv-remote-control-app-lu248i` (acrescente `td` numa sessão só do jogo);
   4. o zip e o `instalar-pack.sh` enviados como arquivos;
   5. resposta dizendo o que mudou, o resultado dos testes, o comando de instalação e o que testar.
 - **Onde roda:** os dois projetos rodam no terminal do Termux, nunca no navegador. O simulador web é legado.
