@@ -4,7 +4,7 @@
 
 Este arquivo existe para continuar o projeto em outra sessão sem perder contexto.
 - **Marcador anterior:** `PVN-CHECKPOINT-2026-09-27`, o da auditoria (PR #8), com o controle 2.0.2 e o jogo 3.1.2.
-- **Este:** entra pelo PR do Teclado Termux.
+- **Este:** entra pelo PR #10, o do Teclado Termux.
 - **Hash exato do commit:** está no resultado de `git log -1 --format=%H -- CHECKPOINT.md`.
 
 Para continuar só o jogo, use `tower-defense/docs/CHECKPOINT.md` (marcador `TD-CHECKPOINT-2026-09-27b`).
@@ -16,7 +16,7 @@ Para continuar só o jogo, use `tower-defense/docs/CHECKPOINT.md` (marcador `TD-
 | Repositório | `matheus23alv-bit/PVN-Controle-Tv` |
 | Branch principal (a "Main" do usuário) | `claude/tv-remote-control-app-lu248i`, que é o branch padrão |
 | Branch de trabalho das sessões | `claude/tower-defense-termux-yjzaeb`, recriado a partir da Main depois de cada merge |
-| Histórico de merges | #1 a #7; #8, a auditoria; #9, o pack e o checkpoint só do Tower Defense; e o PR do Teclado Termux |
+| Histórico de merges | #1 a #7; #8, a auditoria; #9, o pack e o checkpoint só do Tower Defense; #10, o Teclado Termux, o controle 2.1.0 e o jogo 3.2.0 |
 | Controle TV | 2.1.0: controle IR real pelo emissor do celular, com a LG conferida inteira e o VOL que repete ao segurar |
 | Tower Defense | 3.2.0: jogo de terminal em tela cheia retrato, com editor de mapas e barra de teclas automática |
 | Teclado Termux | 1.0.0: comando `teclas`, com as barras de teclas do Termux |

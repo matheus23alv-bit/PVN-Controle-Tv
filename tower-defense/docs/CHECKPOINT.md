@@ -2,7 +2,7 @@
 
 **Marcador:** `TD-CHECKPOINT-2026-09-27b` · Tower Defense **3.2.0** · baterias verdes (lógica 75, tela 99, instalador 29, pack 37). O marcador anterior, `TD-CHECKPOINT-2026-09-27`, era a 3.1.2.
 
-Este é o checkpoint só do jogo, para continuar o Tower Defense em outra sessão sem depender do controle da TV. A versão anterior deste checkpoint entrou pelo PR #9; esta entra pelo PR do Teclado Termux. O do repositório inteiro é o `CHECKPOINT.md` da raiz. O hash exato do commit está no `MARCADOR-DE-CONTINUIDADE.txt` do pack de continuidade, ou em `git log -1 --format=%H -- tower-defense/docs/CHECKPOINT.md`.
+Este é o checkpoint só do jogo, para continuar o Tower Defense em outra sessão sem depender do controle da TV. A versão anterior deste checkpoint entrou pelo PR #9; esta entra pelo PR #10. O do repositório inteiro é o `CHECKPOINT.md` da raiz. O hash exato do commit está no `MARCADOR-DE-CONTINUIDADE.txt` do pack de continuidade, ou em `git log -1 --format=%H -- tower-defense/docs/CHECKPOINT.md`.
 
 ## 1. Estado atual
 
