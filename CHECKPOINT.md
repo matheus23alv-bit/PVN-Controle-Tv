@@ -13,7 +13,7 @@ Para continuar só o jogo, use `tower-defense/docs/CHECKPOINT.md` (marcador `TD-
 | Repositório | `matheus23alv-bit/PVN-Controle-Tv` |
 | Branch principal (a "Main" do usuário) | `claude/tv-remote-control-app-lu248i`, que é o branch padrão |
 | Branch de trabalho das sessões | `claude/tower-defense-termux-yjzaeb`, recriado a partir da Main depois de cada merge |
-| Histórico de merges | PR #1 a #7 e #8 (esta auditoria) |
+| Histórico de merges | PR #1 a #7, #8 (esta auditoria) e #9 (pack e checkpoint só do Tower Defense) |
 | Controle TV | 2.0.2: controle IR real pelo emissor do celular, no terminal |
 | Tower Defense | 3.1.2: jogo de terminal em tela cheia retrato, com editor de mapas |
 | Testes | controle 25/30/9 · jogo 75/95/29 · pack 28 |
