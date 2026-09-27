@@ -45,7 +45,7 @@ O instalador cria o comando `teclas` e pergunta se você quer usar o padrão mel
 
 Ligada por padrão. O `tv` e o `td` chamam `teclas --entrar tv` (ou `jogo`) ao abrir e `teclas --sair` ao fechar. A barra que estava antes é guardada e volta idêntica, mesmo que seja uma barra sua feita à mão.
 
-**Se o app fechar sem avisar**, como ao fechar a sessão do Termux no meio do jogo, a barra dele continua. Ela volta sozinha na próxima vez que você abrir e fechar o `tv` ou o `td`, ou na hora, com `teclas melhorado`.
+**A barra de um app nunca fica presa.** Ao pedir a barra, o app diz qual processo é o dono dela. Se ele for encerrado sem chamar `teclas --sair` — o Android fechando o Termux, a bateria acabando, você fechando a aba —, a barra volta sozinha na primeira vez que o `teclas` rodar, seja pelo menu, por `teclas --estado` ou ao abrir o `tv` ou o `td` de novo. `teclas --estado` mostra o processo dono e avisa quando ele já foi encerrado.
 
 **Uma escolha feita por você no menu vale até você trocar de novo.** Por exemplo, `teclas jogo` deixa a barra do jogo fixa.
 

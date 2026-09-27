@@ -289,6 +289,67 @@ def auto_on(state):
     return state.get("auto", True) is not False
 
 
+def _proc(pid):
+    """Estado e hora de início do processo, de /proc/<pid>/stat. ("", "") se não existe.
+
+    A hora de início distingue o app que pediu a barra de outro processo que pegou o
+    mesmo número depois (o Android reaproveita PID).
+    """
+    try:
+        with open(f"/proc/{int(pid)}/stat", encoding="utf-8", errors="replace") as f:
+            data = f.read()
+    except (OSError, ValueError):
+        return "", ""
+    # o nome do processo vem entre parênteses e pode ter espaços: conta a partir do último ")"
+    fields = data[data.rfind(")") + 1:].split()
+    if len(fields) < 21:
+        return "", ""
+    return fields[0], fields[19]   # estado (R, S, Z...) e starttime
+
+
+def _vivo(pid, inicio=None):
+    """O app que pediu a barra ainda está rodando?
+
+    Um processo zumbi (morreu, o pai ainda não o recolheu) conta como morto: a barra
+    dele tem de voltar. inicio é a hora de início guardada quando ele pediu a barra.
+    """
+    try:
+        pid = int(pid)
+    except (TypeError, ValueError):
+        return False
+    if pid <= 0:
+        return False
+    estado, agora = _proc(pid)
+    if estado:
+        if estado == "Z":
+            return False                      # zumbi: já morreu
+        return not inicio or agora == inicio  # mesmo número, outro processo: o dono morreu
+    if not os.path.isdir("/proc"):
+        try:
+            os.kill(pid, 0)                   # sem /proc: só dá para saber se existe
+        except ProcessLookupError:
+            return False
+        except OSError:
+            return True
+        return True
+    return False
+
+
+def _recuperar(state):
+    """Devolve a barra quando o app que a pediu morreu sem avisar (Android encerrou, bateria).
+
+    Roda com a trava já tomada. Devolve True se o arquivo mudou.
+    """
+    if "base" not in state or "dono" not in state:
+        return False
+    if _vivo(state["dono"], state.get("dono_inicio")):
+        return False
+    base = state.pop("base")
+    state.pop("dono", None)
+    state.pop("dono_inicio", None)
+    return _write_block(state, base, read_lines())
+
+
 class Lock:
     """Uma troca por vez: o td fecha e o "--sair" começa antes do "--entrar" terminar."""
 
@@ -362,6 +423,10 @@ def apply(profile):
     with Lock():
         state = load_state()
         state.pop("base", None)  # escolha manual: nada para voltar depois
+        state.pop("dono", None)
+        state.pop("dono_inicio", None)
+        if profile in CHOICES:
+            state["escolha"] = profile  # escolha da pessoa: para onde voltar, e o que ela quis de propósito
         lines = read_lines()
         remember_original(state, lines)
         changed = _write_block(state, block_for(profile, state), lines)
@@ -371,18 +436,28 @@ def apply(profile):
         return changed
 
 
-def enter(profile):
-    """O tv ou o td abriu: põe a barra dele e guarda a atual para voltar."""
+def enter(profile, owner=None):
+    """O tv ou o td abriu: põe a barra dele e guarda a atual para voltar.
+
+    owner é o PID do app. Serve para devolver a barra se ele morrer sem chamar --sair.
+    """
     if not is_termux():
         return False
     with Lock():
         state = load_state()
         if not auto_on(state):
             return False
+        _recuperar(state)   # sobrou barra de um app que morreu: devolve antes de guardar a base
         lines = read_lines()
         remember_original(state, lines)
         if detect(lines) not in APP_PROFILES:  # vindo de outro app (ou de um fechamento sem --sair): mantém a base
             state["base"] = current_block(lines)
+        if owner is not None:
+            state["dono"] = owner
+            state["dono_inicio"] = _proc(owner)[1]
+        else:
+            state.pop("dono", None)
+            state.pop("dono_inicio", None)
         changed = _write_block(state, block_for(profile, state), lines)
         save_state(state)
         if changed:
@@ -397,10 +472,40 @@ def leave():
     with Lock():
         state = load_state()
         if "base" not in state:
-            return False
+            # Nada guardado para voltar. Se a barra na tela é de um app e não foi a pessoa
+            # que a escolheu, ela ficou presa (app encerrado pelo Android, estado perdido):
+            # volta para a escolha da pessoa. Se ela escolheu essa barra de propósito
+            # (teclas jogo), fica como está.
+            lines = read_lines()
+            atual = detect(lines)
+            if atual not in APP_PROFILES or state.get("escolha") == atual:
+                return False
+            state.pop("dono", None)
+            state.pop("dono_inicio", None)
+            changed = _write_block(state, block_for(state.get("escolha", "original"), state), lines)
+            save_state(state)
+            if changed:
+                reload_termux()
+            return changed
         base = state.pop("base")
+        state.pop("dono", None)
+        state.pop("dono_inicio", None)
         changed = _write_block(state, base, read_lines())
         save_state(state)
+        if changed:
+            reload_termux()
+        return changed
+
+
+def sanear():
+    """Devolve a barra se o app que a pediu morreu sem avisar. Roda em toda chamada do teclas."""
+    if not is_termux():
+        return False
+    with Lock():
+        state = load_state()
+        changed = _recuperar(state)
+        if changed or "dono" not in state:
+            save_state(state)
         if changed:
             reload_termux()
         return changed
@@ -675,12 +780,18 @@ Perfis:
   original    a barra que você tinha antes do teclas
 
 Com a troca automática ligada, o tv e o td põem a barra deles ao abrir
-(teclas --entrar <perfil>) e devolvem a anterior ao fechar (teclas --sair).
+(teclas --entrar <perfil> --dono <processo>) e devolvem a anterior ao fechar
+(teclas --sair). A barra de um app nunca fica presa: se ele for encerrado pelo
+Android sem chamar --sair, a barra volta na primeira vez que o teclas rodar.
 """
 
 
 def main(argv=None):
     args = list(sys.argv[1:] if argv is None else argv)
+    # antes de tudo: se o td ou o tv foi encerrado pelo Android sem devolver a barra,
+    # ela volta agora. Assim a barra de um app nunca fica presa no Termux da pessoa.
+    if args[:1] != ["--entrar"]:   # o --entrar já recupera por dentro, com a trava tomada
+        sanear()
     if not args:
         if not sys.stdin.isatty():
             print(USAGE)
@@ -710,6 +821,10 @@ def main(argv=None):
         print(f"troca automática: {'sim' if auto_on(state) else 'não'}")
         if "base" in state:
             print("volta ao fechar o app: " + NAMES.get(detect(state["base"]), "a barra anterior"))
+            if "dono" in state:
+                vivo = _vivo(state["dono"], state.get("dono_inicio"))
+                print(f"app que pediu a barra: processo {state['dono']}"
+                      + ("" if vivo else " (já encerrado: a barra volta agora)"))
         return 0
     if cmd == "--auto":
         value = args[1].strip().lower() if len(args) > 1 else ""
@@ -723,7 +838,12 @@ def main(argv=None):
         profile = canon(args[1]) if len(args) > 1 else None
         if profile not in PROFILES:
             return 2
-        enter(profile)
+        owner = None
+        if "--dono" in args:
+            i = args.index("--dono")
+            if i + 1 < len(args):
+                owner = args[i + 1]
+        enter(profile, owner)
         return 0
     if cmd == "--sair":
         leave()

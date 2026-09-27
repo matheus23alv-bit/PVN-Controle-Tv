@@ -354,6 +354,118 @@ class TestRemover(Base):
         self.assertEqual(self.lines(), ["bell-character = ignore"])
 
 
+class TestBarraNaoFicaPresa(Base):
+    """A barra de um app nunca fica presa: o dono morreu, a barra volta."""
+
+    def morto(self):
+        """Um PID que com certeza não existe mais."""
+        r = subprocess.run([sys.executable, "-c", "import os; print(os.getpid())"],
+                           capture_output=True, text=True, timeout=30)
+        return r.stdout.strip()
+
+    def test_dono_morto_devolve_a_barra_na_proxima_chamada(self):
+        self.write(MINHA)
+        self.run_teclas("--entrar", "jogo", "--dono", self.morto())
+        self.assertEqual(teclas.detect(self.lines()), "jogo")
+        self.run_teclas("--estado")          # qualquer chamada do teclas recupera
+        self.assertEqual(self.lines(), MINHA)
+
+    def test_dono_vivo_mantem_a_barra_do_app(self):
+        self.write(MINHA)
+        self.run_teclas("--entrar", "jogo", "--dono", str(os.getpid()))
+        self.run_teclas("--estado")
+        self.assertEqual(teclas.detect(self.lines()), "jogo")
+
+    def test_abrir_outro_app_recupera_a_barra_antes_de_guardar_a_base(self):
+        self.write(MINHA)
+        self.run_teclas("--entrar", "jogo", "--dono", self.morto())
+        self.run_teclas("--entrar", "tv", "--dono", str(os.getpid()))
+        self.assertEqual(teclas.detect(self.lines()), "tv")
+        self.run_teclas("--sair")
+        self.assertEqual(self.lines(), MINHA)   # volta para a da pessoa, não para a do jogo
+
+    def test_sair_solta_a_barra_presa_sem_base_guardada(self):
+        self.write(MINHA)
+        self.run_teclas("melhorado")            # a escolha da pessoa para o dia a dia
+        self.run_teclas("--entrar", "jogo", "--dono", str(os.getpid()))
+        st = self.state()                       # o app morreu e levou a base junto
+        st.pop("base", None)
+        st.pop("dono", None)
+        with open(os.path.join(self.home, ".config", "teclas", "estado.json"), "w") as f:
+            json.dump(st, f)
+        self.run_teclas("--sair")
+        self.assertEqual(teclas.detect(self.lines()), "melhorado")
+
+    def test_sair_respeita_a_barra_do_jogo_escolhida_a_mao(self):
+        self.write(MINHA)
+        self.run_teclas("jogo")                 # a pessoa quis a barra do jogo no dia a dia
+        self.run_teclas("--sair")
+        self.assertEqual(teclas.detect(self.lines()), "jogo")
+
+    def test_sair_sem_barra_de_app_na_tela_nao_mexe_em_nada(self):
+        self.write(MINHA)
+        self.run_teclas("--sair")
+        self.assertEqual(self.lines(), MINHA)
+        self.assertFalse(os.path.exists(self.reloads))
+
+    def test_sair_repetido_nao_muda_mais_nada(self):
+        self.write(MINHA)
+        self.run_teclas("--entrar", "jogo", "--dono", str(os.getpid()))
+        self.run_teclas("--sair")
+        depois = self.lines()
+        self.run_teclas("--sair")
+        self.assertEqual(self.lines(), depois)
+
+    def test_entrar_sem_dono_continua_funcionando(self):
+        self.write(MINHA)
+        self.run_teclas("--entrar", "jogo")     # versão antiga do td, sem --dono
+        self.assertEqual(teclas.detect(self.lines()), "jogo")
+        self.assertNotIn("dono", self.state())
+        self.run_teclas("--sair")
+        self.assertEqual(self.lines(), MINHA)
+
+    def test_escolha_da_pessoa_fica_guardada_para_a_volta(self):
+        self.write(MINHA)
+        self.run_teclas("melhorado")
+        self.assertEqual(self.state().get("escolha"), "melhorado")
+        self.run_teclas("tv")
+        self.assertEqual(self.state().get("escolha"), "tv")
+
+    def test_dono_zumbi_conta_como_morto(self):
+        """Morreu mas o pai ainda não o recolheu: a barra dele tem de voltar."""
+        import signal
+        filho = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+        try:
+            self.write(MINHA)
+            self.run_teclas("--entrar", "jogo", "--dono", str(filho.pid))
+            filho.send_signal(signal.SIGKILL)
+            for _ in range(100):               # espera virar zumbi (sem dar wait: o pai sou eu)
+                if teclas._proc(filho.pid)[0] == "Z":
+                    break
+                time.sleep(0.05)
+            self.assertEqual(teclas._proc(filho.pid)[0], "Z", "não virou zumbi")
+            self.run_teclas("--estado")
+            self.assertEqual(self.lines(), MINHA)
+        finally:
+            filho.wait(timeout=30)
+
+    def test_outro_processo_com_o_mesmo_numero_nao_segura_a_barra(self):
+        """O Android reaproveita PID: número igual, processo diferente, dono morto."""
+        self.write(MINHA)
+        self.run_teclas("--entrar", "jogo", "--dono", str(os.getpid()))
+        st = self.state()
+        st["dono_inicio"] = str(int(st["dono_inicio"]) + 100000)   # como se fosse outro processo
+        with open(os.path.join(self.home, ".config", "teclas", "estado.json"), "w") as f:
+            json.dump(st, f)
+        self.run_teclas("--estado")
+        self.assertEqual(self.lines(), MINHA)
+
+    def test_fora_do_termux_nao_mexe_no_arquivo(self):
+        self.write(MINHA)
+        self.run_teclas("--entrar", "jogo", "--dono", self.morto(), termux=False)
+        self.assertEqual(self.lines(), MINHA)
+
+
 class TestLinhaDeComando(Base):
     def test_ajuda_versao_lista(self):
         self.assertIn("teclas <perfil>", self.run_teclas("--ajuda").stdout)

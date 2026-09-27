@@ -2,6 +2,22 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versionamento semântico.
 
+## [1.1.0] — 2026-09-27
+
+A barra de um app nunca fica presa. Se o `td` ou o `tv` for encerrado pelo Android sem chamar `teclas --sair`, a barra da pessoa volta sozinha.
+
+### Adicionado
+- **Dono da barra.** `teclas --entrar <perfil> --dono <processo>` guarda qual processo pediu a barra, junto da hora em que ele começou. Quem chama sem `--dono` continua funcionando como antes.
+- **Devolução automática.** Toda chamada do `teclas` (o menu, `--estado`, uma troca de perfil) confere primeiro se o dono da barra ainda está vivo. Se não está, devolve a barra antes de fazer o que foi pedido. Na prática: o jogo foi encerrado pela bateria, a pessoa volta ao Termux e a primeira coisa que ela fizer com o `teclas` já corrige a barra.
+- **Processo zumbi conta como morto** (morreu, o pai ainda não o recolheu), e **número de processo reaproveitado** não segura mais a barra: o Android reaproveita PID, e a hora de início separa um processo do outro.
+
+### Mudado
+- **`--sair` solta a barra presa mesmo sem ter o que devolver guardado.** Antes ele saía sem fazer nada. Agora, se a barra na tela é de um app e não foi a pessoa que a escolheu, ele volta para a escolha dela. A barra que a pessoa escolheu de propósito (`teclas jogo`, `teclas tv`) continua intacta.
+- **A escolha da pessoa fica guardada** (`escolha` no estado), para ser o destino de uma barra presa.
+
+### Testes
+- 12 verificações novas (41 no total): dono morto, dono vivo, zumbi, PID reaproveitado, `--sair` repetido, `--sair` sem barra de app na tela, `--entrar` sem `--dono`, abrir outro app com a barra presa e a barra escolhida à mão.
+
 ## [1.0.0] — 2026-09-27
 
 Primeira versão.

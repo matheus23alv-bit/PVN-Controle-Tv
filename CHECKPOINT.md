@@ -1,13 +1,15 @@
 # Checkpoint — PVN Workspace
 
-**Marcador:** `PVN-CHECKPOINT-2026-09-27b` · controle **2.1.0** · Tower Defense **3.2.0** · Teclado Termux **1.0.0** · todas as baterias verdes.
+**Marcador:** `PVN-CHECKPOINT-2026-09-27c` · controle **2.1.0** · Teclado Termux **1.1.0** · todas as baterias verdes.
+
+**O Tower Defense saiu deste repositório.** Ele agora mora em `matheus23alv-bit/TOWER-DEFENSE---TERMUX-`, com os 13 commits do jogo preservados e o checkpoint dele na raiz de lá. Aqui ficaram o controle da TV e o Teclado Termux. O perfil `jogo` do teclado continua aqui: é a barra de teclas do jogo, e o `td` a pede pelo comando `teclas`.
 
 Este arquivo existe para continuar o projeto em outra sessão sem perder contexto.
-- **Marcador anterior:** `PVN-CHECKPOINT-2026-09-27`, o da auditoria (PR #8), com o controle 2.0.2 e o jogo 3.1.2.
+- **Marcadores anteriores:** `PVN-CHECKPOINT-2026-09-27c` (controle 2.1.0, jogo 3.2.0, teclado 1.0.0) e `PVN-CHECKPOINT-2026-09-27`, o da auditoria (PR #8).
 - **Este:** entra pelo PR #10, o do Teclado Termux.
 - **Hash exato do commit:** está no resultado de `git log -1 --format=%H -- CHECKPOINT.md`.
 
-Para continuar só o jogo, use `tower-defense/docs/CHECKPOINT.md` (marcador `TD-CHECKPOINT-2026-09-27b`).
+Para continuar o jogo, use o `CHECKPOINT.md` do repositório `TOWER-DEFENSE---TERMUX-` (marcador `TD-CHECKPOINT-2026-09-27c`).
 
 ## 1. Estado atual
 
@@ -15,13 +17,12 @@ Para continuar só o jogo, use `tower-defense/docs/CHECKPOINT.md` (marcador `TD-
 |---|---|
 | Repositório | `matheus23alv-bit/PVN-Controle-Tv` |
 | Branch principal (a "Main" do usuário) | `claude/tv-remote-control-app-lu248i`, que é o branch padrão |
-| Branch de trabalho das sessões | `claude/tower-defense-termux-yjzaeb`, recriado a partir da Main depois de cada merge |
-| Histórico de merges | #1 a #7; #8, a auditoria; #9, o pack e o checkpoint só do Tower Defense; #10, o Teclado Termux, o controle 2.1.0 e o jogo 3.2.0 |
+| Branch de trabalho das sessões | o que a sessão indicar, recriado a partir da Main depois de cada merge |
+| Histórico de merges | #1 a #7; #8, a auditoria; #9, o pack e o checkpoint só do Tower Defense; #10, o Teclado Termux, o controle 2.1.0 e o jogo 3.2.0; depois disso, a saída do jogo para o repositório dele e o teclado 1.1.0 |
 | Controle TV | 2.1.0: controle IR real pelo emissor do celular, com a LG conferida inteira e o VOL que repete ao segurar |
-| Tower Defense | 3.2.0: jogo de terminal em tela cheia retrato, com editor de mapas e barra de teclas automática |
 | Teclado Termux | 1.0.0: comando `teclas`, com as barras de teclas do Termux |
 | TV do usuário | **LG** (informada em 2026-09-27) |
-| Testes | controle 31/39/9 · jogo 75/99/29 · teclado 29/21/19 · pack 37 |
+| Testes | controle 31/39/9 · teclado 41/21/19 · pack 27 |
 
 ## 2. Os três projetos
 
@@ -37,15 +38,6 @@ Para continuar só o jogo, use `tower-defense/docs/CHECKPOINT.md` (marcador `TD-
 - **Linha de comando:** `tv ligar`, `--perfil`, `--listar`, `--importar`, `--diagnostico`, `--atalhos` e `--simular`.
 - **Configuração:** `~/.config/pvn-tv/` (`config.json` e `perfis/*.ir`). Instala em `~/.local/share/pvn-controle-tv`, com o comando `tv`.
 
-**`tower-defense/`**: tower defense de terminal, independente e leve. O usuário tem outro projeto de tower defense, complexo e separado; este não é porte dele.
-- **Código:** `source/td.py`, um arquivo só, com biblioteca padrão e `curses`.
-- **Visual:** emojis em casas de 2 colunas e escala automática de 1× a 3× (layout 9:16).
-- **Torres:** 4 (🏹 💣 🔮 🌀), com habilidade no nível 3 e mira por torre (1º, forte, perto).
-- **Monstros:** 8 (👾 🐀 👹 🐌 🐢 🦇 👻 🐉), com casco, cura, imunidade, invisibilidade e invocação.
-- **Efeitos:** só visuais (tiros, explosão, números de dano, faixas, tremida e vibração pelo `termux-vibrate`).
-- **Mapas:** 3 prontos (Serpente, Espiral, Rio), gerador por semente, editor na tela e arquivos `.mapa` em texto.
-- **Telas:** menu, tutorial de 9 passos, Mapas, Criar mapa, Como jogar, Opções e Ajustar tela (régua de emojis, tela cheia e fonte DejaVu).
-- **Configuração:** `~/.config/td-termux/` (`config.json` e `mapas/*.mapa`). Instala em `~/.local/share/tower-defense`, com o comando `td`.
 
 **`teclado-termux/`**: comando `teclas`, que troca a barra de teclas extras do Termux. Só mexe na linha `extra-keys` do `~/.termux/termux.properties`.
 - **Código:** `source/teclas.py`, um arquivo só, com biblioteca padrão e `curses`.
@@ -64,23 +56,12 @@ Para continuar só o jogo, use `tower-defense/docs/CHECKPOINT.md` (marcador `TD-
 
 **Raiz:**
 - `setup-teste.sh`: instala os três projetos, o teclado primeiro, ou só o que vier no pack.
-- `empacotar.sh`: gera o pack zip com o `PACK-INFO.txt` (versões, inclusive a do teclado) e o SHA-256 de cada arquivo. Com `td` no fim, o pack leva só o jogo.
+- `empacotar.sh`: gera o pack zip com o `PACK-INFO.txt` (versões do controle e do teclado) e o SHA-256 de cada arquivo. O pack do jogo é gerado no repositório dele e se chama `TD-pack-*.zip`, então os dois podem ficar juntos na pasta Download.
 - `instalar-pack.sh`: instala do zip na pasta Download do celular.
 - `testes/test_pack.sh`: testa essas três ferramentas e os três projetos juntos (a barra trocando de verdade).
 - `testes/captura.sh` e `testes/term2png.py`: capturam a tela do tmux em PNG para revisão visual.
 
 ## 3. Mapa do código
-
-**`tower-defense/source/td.py`** (cerca de 3.200 linhas), na ordem:
-
-1. **Constantes:** `TOWERS`, `ENEMIES`, `START_GOLD=100`, `HP_GROWTH=1.16`, `UPGRADE_PRICE={1: 0.7, 2: 2.2}`, `FPS=20`.
-2. **Motor de mapas:** `Mapa`, `MapError` (com mensagem curta), `trace()`, `generate_map` (`_snake`, `_zigzag`, `_decorate`), mapas prontos e arquivos.
-3. **Lógica:** `Tower`, `Enemy`, `Fx` e `Game` (`_step`, `_fire` com busca binária na trilha, `_hit`). Os efeitos têm duração em segundos reais.
-4. **Editor sem tela:** `Editor` (pintar, trilha pelos cantos, desfazer, redimensionar, gerar).
-5. **Tutorial:** `tutorial_spots` e `tutorial_steps`.
-6. **Utilidades de tela:** `fit`, `wrap`, `short_num`, `Palette` (256 ou 8 cores), `Layout` e `compute_layout` (escala), `texture`.
-7. **`App`:** telas `draw_<tela>` e `key_<tela>`, janelas sobrepostas e mapa de ocupação (nada corta emoji ao meio).
-8. **Linha de comando:** `--jogar`, `--editor`, `--mapas`, `--gerar`, `--validar`, `--importar`, `--tutorial`, `--sem-emoji`, `--sem-toque`, `--versao` e `--ajuda`. O `teclas()` troca a barra ao abrir e fechar.
 
 **`controle-tv/source/tv.py`** (cerca de 1.000 linhas):
 
@@ -110,7 +91,7 @@ Resumo do `CLAUDE.md`, que é carregado automaticamente em toda sessão.
 - **Entrega:**
   1. testes;
   2. PR para a Main e merge;
-  3. pack zip gerado do commit mesclado: `git fetch origin && bash empacotar.sh <pasta> origin/claude/tv-remote-control-app-lu248i` (acrescente `td` numa sessão só do jogo);
+  3. pack zip gerado do commit mesclado: `git fetch origin && bash empacotar.sh <pasta> origin/claude/tv-remote-control-app-lu248i`;
   4. o zip e o `instalar-pack.sh` enviados como arquivos;
   5. resposta dizendo o que mudou, o resultado dos testes, o comando de instalação e o que testar.
 - **Onde roda:** os três projetos rodam no terminal do Termux, nunca no navegador. O simulador web é legado.
@@ -124,15 +105,12 @@ Resumo do `CLAUDE.md`, que é carregado automaticamente em toda sessão.
 
 ```bash
 cd controle-tv && python3 -m unittest testes/test_ir.py && bash testes/test_tela.sh && bash testes/test_instalador.sh
-cd tower-defense && python3 -m unittest testes/test_logica.py && bash testes/test_terminal.sh && bash testes/test_instalador.sh
 cd teclado-termux && python3 -m unittest testes/test_teclas.py && bash testes/test_tela.sh && bash testes/test_instalador.sh
 bash testes/test_pack.sh                                        # na raiz
-python3 tower-defense/testes/simulacao_balanceamento.py tower-defense/source/td.py 3   # ~2 min
-python3 -m pyflakes controle-tv/source/tv.py tower-defense/source/td.py teclado-termux/source/teclas.py
+python3 -m pyflakes controle-tv/source/tv.py teclado-termux/source/teclas.py
 ```
 
 - **Pré-requisitos:** os testes de tela precisam de `tmux`. O controle usa o Termux:API falso de `controle-tv/testes/mock-termux-api/`, e `TV_MOCK_ATRASO` imita a demora do envio.
-- **Onde tocar nos testes do jogo:** `tower-defense/testes/tela.py` acha botões e casas na tela capturada.
 - **Revisão visual:** abra o programa numa sessão do tmux em 46×50 e rode `bash testes/captura.sh <sessão> <nome>`.
 
 ## 6. Decisões já tomadas (não reabrir sem motivo)
@@ -148,6 +126,8 @@ python3 -m pyflakes controle-tv/source/tv.py tower-defense/source/td.py teclado-
 | Nível 3 custa 2,2× a torre | Com habilidades a 1,4×, a melhor estratégia chegava à onda 30; com 2,2×, volta à média 27 |
 | Fonte DejaVu e tela cheia do Termux só com confirmação e backup | Mudam o Termux inteiro; o `--remover` restaura byte a byte |
 | Barra de teclas num projeto próprio (`teclado-termux`), trocada ao abrir e fechar os apps | O usuário quer três barras (dia a dia, jogo, TV) e a volta à dele; a barra fixa pelo instalador do jogo não tinha volta fácil |
+| A barra de um app nunca fica presa: o `--entrar` guarda o dono e o `teclas` devolve sozinho quando ele morre | Rodar um app não pode quebrar o Termux do dia a dia. Zumbi conta como morto e PID reaproveitado não segura a barra |
+| O jogo em repositório separado | Era um erro de rumo ter começado o jogo no repositório do controle; o `TOWER-DEFENSE---TERMUX-` é o oficial dele |
 | VOL da barra da TV no PGUP e no PGDN | São teclas que o Termux repete sozinho ao segurar; o controle descarta as repetições enquanto o sinal anterior não saiu |
 | O teclas mexe só na linha `extra-keys` e grava `\uXXXX` | Não estraga o resto do `termux.properties` e funciona em qualquer versão do Termux |
 
@@ -171,7 +151,6 @@ python3 -m pyflakes controle-tv/source/tv.py tower-defense/source/td.py teclado-
 
 1. **Teste real do usuário:** receber o resultado dos roteiros e corrigir o que aparecer. Os roteiros estão em:
    - `controle-tv/docs/ROADMAP.md`;
-   - `tower-defense/docs/ROADMAP.md`;
    - `teclado-termux/docs/ROADMAP.md`.
 2. **Dificuldade:** ajustar com as ondas reais (`HP_GROWTH`, `UPGRADE_PRICE` e os pesos das ondas), refazendo a simulação.
 3. **Controle:** uma segunda página de botões LG (Guia, Q.Menu, cores, play e pausa, ligar e desligar separados).
@@ -185,7 +164,7 @@ Relatório completo da última auditoria: `docs/AUDITORIA-2026-09-27.md`.
 Cole este prompt numa sessão nova, com o repositório `matheus23alv-bit/PVN-Controle-Tv` anexado:
 
 ```
-Continuação do PVN Workspace a partir do marcador PVN-CHECKPOINT-2026-09-27b.
+Continuação do PVN Workspace a partir do marcador PVN-CHECKPOINT-2026-09-27c.
 Antes de qualquer coisa:
 1. Leia CLAUDE.md e CHECKPOINT.md na raiz do repositório.
 2. Confira o estado: git fetch origin && git log --oneline -5 origin/claude/tv-remote-control-app-lu248i

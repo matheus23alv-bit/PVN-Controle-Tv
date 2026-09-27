@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-# Instala o PVN (teclado, controle da TV e Tower Defense, ou só o jogo num pack "td")
-# a partir do pack zip salvo na pasta Download do celular.
+# Instala o PVN (Teclado Termux e controle da TV) a partir do pack zip salvo
+# na pasta Download do celular.
+#
+# O Tower Defense saiu deste repositório: ele tem o instalar-pack.sh dele em
+# matheus23alv-bit/TOWER-DEFENSE---TERMUX-, e o pack dele se chama TD-pack-*.zip.
 #
 #   termux-setup-storage                          (uma vez: toque em Permitir)
 #   bash ~/storage/downloads/instalar-pack.sh     (se este arquivo também está no Download)
@@ -96,7 +99,7 @@ if command -v sha256sum >/dev/null 2>&1; then
 else
   warn "sha256sum indisponível: pulando a conferência"
 fi
-sed -n 's/^\(commit\|controle\|jogo\|teclado\): */\1 /p' "$INFO" | sed 's/^commit \(.......\).*/commit \1/' | while read -r k v; do ok "$k $v"; done
+sed -n 's/^\(commit\|controle\|teclado\): */\1 /p' "$INFO" | sed 's/^commit \(.......\).*/commit \1/' | while read -r k v; do ok "$k $v"; done
 rm -rf "$DEST"
 mv "$PACK" "$DEST"
 rm -rf "$TMP"

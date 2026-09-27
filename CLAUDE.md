@@ -2,22 +2,25 @@
 
 ## Início de sessão
 
-Leia `CHECKPOINT.md` (estado atual, mapa do código, decisões tomadas, pendências e próximos passos) antes de mexer no projeto. Em sessão só do Tower Defense, leia `tower-defense/docs/CHECKPOINT.md`. Ao fechar um ciclo grande, atualize o checkpoint.
+Leia `CHECKPOINT.md` (estado atual, mapa do código, decisões tomadas, pendências e próximos passos) antes de mexer no projeto. Ao fechar um ciclo grande, atualize o checkpoint.
 
 ## Entrega (obrigatório em toda entrega ao usuário)
 
 1. **Merge** da atualização no branch principal do repositório (`claude/tv-remote-control-app-lu248i`, o default) por PR, depois de rodar os testes abaixo.
 2. **Pack zip** gerado do commit já mesclado e enviado ao usuário como arquivo, junto com o `instalar-pack.sh` (ele instala a partir do zip na pasta Download do celular):
    `git fetch origin && bash empacotar.sh <pasta> origin/claude/tv-remote-control-app-lu248i`
-   Em sessão só do Tower Defense, acrescente `td` no fim: o pack leva só o jogo e instala só ele.
 3. Na resposta: o que mudou, resultado dos testes, o comando de instalação e o que o usuário precisa testar.
 
 ## Direção dos projetos
 
-- Os três projetos rodam **no terminal do Termux**, não no navegador.
+- Os dois projetos rodam **no terminal do Termux**, não no navegador.
 - `controle-tv`: controle remoto real pelo **emissor infravermelho do próprio celular** (Termux:API, `termux-infrared-transmit`). O simulador web é legado.
-- `tower-defense`: jogo independente e leve, visual com emojis em casas de 2 colunas; setup, menu e tutorial ficam dentro do terminal. O usuário tem outro projeto TD, complexo, separado deste.
-- `teclado-termux`: comando `teclas`, que troca a barra de teclas extras do Termux (padrão melhorado, jogo, TV, padrão do Termux e a barra de antes da pessoa). O `tv` e o `td` chamam `teclas --entrar <perfil>` e `teclas --sair`, só se o comando existir: os projetos continuam independentes.
+- `teclado-termux`: comando `teclas`, que troca a barra de teclas extras do Termux (padrão melhorado, jogo, TV, padrão do Termux e a barra de antes da pessoa). O `tv` chama `teclas --entrar tv` e `teclas --sair`, só se o comando existir: os projetos continuam independentes.
+  - **A barra de um app nunca fica presa.** O `--entrar` recebe `--dono <pid>`; se o app morre sem chamar `--sair`, a primeira chamada do `teclas` devolve a barra. Mexer nisso exige rodar os testes de barra presa (`testes/test_teclas.py`, classe `TestBarraNaoFicaPresa`).
+
+## O Tower Defense saiu deste repositório
+
+O jogo agora mora em `matheus23alv-bit/TOWER-DEFENSE---TERMUX-`, com as convenções dele no `CLAUDE.md` de lá. Aqui só resta o perfil `jogo` do teclado, que é a barra de teclas do jogo: mudar uma tecla dela exige subir a versão do teclado e avisar no outro repositório. Não recrie a pasta `tower-defense/` aqui.
 
 ## Estrutura
 
@@ -30,9 +33,8 @@ Leia `CHECKPOINT.md` (estado atual, mapa do código, decisões tomadas, pendênc
 
 ```bash
 cd controle-tv && python3 -m unittest testes/test_ir.py && bash testes/test_tela.sh && bash testes/test_instalador.sh
-cd tower-defense && python3 -m unittest testes/test_logica.py && bash testes/test_terminal.sh && bash testes/test_instalador.sh
 cd teclado-termux && python3 -m unittest testes/test_teclas.py && bash testes/test_tela.sh && bash testes/test_instalador.sh
-bash testes/test_pack.sh   # na raiz: empacotar.sh, instalar-pack.sh, setup-teste.sh e os três juntos
+bash testes/test_pack.sh   # na raiz: empacotar.sh, instalar-pack.sh, setup-teste.sh e os dois juntos
 ```
 
 Os testes de tela precisam de `tmux`. O controle é testado com o Termux:API falso de `controle-tv/testes/mock-termux-api/`.
