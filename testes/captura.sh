@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Captura a tela de uma sessão do tmux em PNG, para revisar o visual dos dois projetos.
+# Captura a tela de uma sessão do tmux em PNG, para revisar o visual do controle e do teclado.
 #   bash testes/captura.sh <sessão-tmux> <nome> [colunas] [pasta]
-# Ex.: tmux new-session -d -s v -x 46 -y 50 "python3 tower-defense/source/td.py"
+# Ex.: tmux new-session -d -s v -x 46 -y 50 "python3 controle-tv/source/tv.py --simular"
 #      bash testes/captura.sh v menu 46      ->  capturas/menu.png
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
